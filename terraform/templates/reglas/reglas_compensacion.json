@@ -1,0 +1,52 @@
+{
+  "reglas": [
+    {
+      "id": "CUENTA_DISMINUYE_GASTO",
+      "tipos_origen": ["CUENTA"],
+      "bloque_origen": "CAJA_ACTUAL",
+      "condicion_valor": "NEGATIVO",
+      "requiere_cuenta": true,
+      "descripcion": "Toda cuenta con valor negativo debe disminuir el valor del gasto proyectado",
+      "acciones": [
+        {
+          "tipo_destino": "GASTO",
+          "bloque_destino": "PROYECCION",
+          "operacion": "DECREMENTAR",
+          "monto": "VALOR"
+        },
+        {
+          "tipo_destino": "CUENTA",
+          "bloque_destino": "CAJA_ACTUAL",
+          "operacion": "DECREMENTAR",
+          "monto": "VALOR"
+        }
+      ],
+      "activo": true
+    },
+    {
+    "id": "MOV_TARJETA_REDUCE_PROYECCION",
+    "tipos_origen": ["TARJETA"],
+    "bloque_origen": "CAJA_ACTUAL",
+    "condicion_valor": "POSITIVO",
+    "requiere_cuenta": false,
+    "descripcion":"Todo movimiento de tarjeta positivo, disminuira un gasto proyectado",
+    "excluir_conceptos": ["SALDO_INICIAL"],
+    "requiere_franquicia": true,
+    "acciones": [
+        {
+        "tipo_destino": "GASTO",
+        "bloque_destino": "PROYECCION",
+        "operacion": "DECREMENTAR",
+        "monto": "VALOR"
+        },
+        {
+        "tipo_destino": "TARJETA",
+        "bloque_destino": "CAJA_ACTUAL",
+        "operacion": "INCREMENTAR",
+        "monto": "VALOR"
+        }
+    ],
+    "activo": true
+    }
+  ]
+}

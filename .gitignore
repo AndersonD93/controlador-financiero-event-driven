@@ -1,0 +1,20 @@
+#Ignorar config.js
+terraform/templates/js/config.js
+
+#Ignorar archivos de terraform
+terraform/.terraform/
+terraform/.terraform.lock.hcl
+terraform/terraform.tfstate
+terraform/terraform.tfstate.backup
+**/.terraform/
+*.tfstate
+*.tfstate.*
+.crash.log
+
+#Ignorar versiones de archivos ZIP
+*.zip
+
+# Frontend generated artifacts
+terraform/templates/css/*
+terraform/templates/html/*
+terraform/templates/js/*

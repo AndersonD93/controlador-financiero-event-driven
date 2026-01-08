@@ -1,0 +1,24 @@
+{
+  "CASA": {
+    "CUENTAS": [
+      "BDO",
+      "KUBO",
+      "NEQUI"
+    ],
+    "TARJETAS":[
+      "TARJETA VISA BDO",
+      "TARJETA MASTERCARD BDO"]
+  },
+  "PERSONAL": {
+    "CUENTAS": [
+      "BDO",
+      "KUBO",
+      "NEQUI",
+      "BANCOLOMBIA"
+    ],
+    "TARJETAS":[
+      "TARJETA VISA BDO",
+      "TARJETA MASTERCARD BDO",
+      "TARJETA MASTERCARD NU"]
+  }
+}

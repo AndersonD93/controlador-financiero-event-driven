@@ -1,0 +1,46 @@
+
+Registrar ingreso
+{
+  "Cuenta": "BDO",
+  "Descripcion": "SALARIO",
+  "Valor": 8500000,
+  "FechaMovimiento": "2026-01-15",
+  "Corte": "2026-01",
+  "DominioFinanciero": "PERSONAL",
+  "Subconcepto": "ENERO"
+}
+
+MovimientosCuentasAltoRendimiento
+{
+  "Cuenta": "Kubo",
+  "Descripcion": "SERVICIOS",
+  "Subconcepto": "Streaming",
+  "Valor": 150000,
+  "FechaMovimiento": "2026-01-05",
+  "Corte": "2026-01",
+  "DominioFinanciero": "Casa"
+}
+MovimientosTarjetas
+{
+  "Franquicia": "TARJETA VISA BDO",
+  "Corte": "2025-01",
+  "Valor": 50000,
+  "FechaMovimiento": "2025-01-15",
+  "DominioFinanciero": "CASA",
+  "Descripcion": "SERVICIOS",
+  "Subconcepto": "PAGO INTERNET ENERO"
+}
+
+ParametrizarConceptosAhorro
+{
+  "Corte": "2026-01",
+  "Valor": 100000,
+  "FechaMovimiento": "2026-01-15",
+  "DominioFinanciero": "CASA",
+  "Concepto": "SERVICIO",
+  "Subconcepto": "ELECTRICIDAD"
+}
+
+
+
+
