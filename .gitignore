@@ -10,6 +10,7 @@ terraform/terraform.tfstate.backup
 *.tfstate
 *.tfstate.*
 .crash.log
+terraform/terraform.tfvars
 
 #Ignorar versiones de archivos ZIP
 *.zip
