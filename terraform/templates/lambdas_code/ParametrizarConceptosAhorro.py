@@ -107,14 +107,14 @@ def lambda_handler(event, context):
         # =========================
         if dominio == "CASA":
             table = table_casa
-        elif dominio == "PERSONAL":
+        elif dominio in ["PERSONAL","AHORRO"]:
             table = table_personal
         else:
             return {
                 "statusCode": 400,
                 "headers": HEADERS,
                 "body": json.dumps({
-                    "message": "DominioFinanciero inválido. Valores permitidos: CASA, PERSONAL"
+                    "message": "DominioFinanciero inválido. Valores permitidos: CASA, PERSONAL, AHORRO"
                 })
             }
 

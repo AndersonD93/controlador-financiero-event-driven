@@ -17,15 +17,6 @@ provider "aws" {
 }
 
 
-module "resources" {
-  source = "./modules/resources"
-  # Resoruces Input Vars
-  s3_list_name            = local.s3_list_name
-  #dynamo_tables_list_name = local.dynamo_tables_list_name
-}
-
-
-
 module "tf-state" {
   source      = "./modules/tf-state"
   bucket_name = "cc-tf-state-backend-ci-cd-ajduran-control-financiero"

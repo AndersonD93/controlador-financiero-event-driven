@@ -54,5 +54,21 @@
         "APORTE HOGAR"
       ]
     }
+  },
+
+  "AHORRO": {
+    "CAJA_ACTUAL": {
+      "CUENTA": [
+        "BDO",
+        "KUBO",
+        "NEQUI"
+      ]
+    },
+    "PROYECCION": {
+      "GASTOS": [
+        "AHORRO PROYECTO FINCA",
+        "AHORRO CONTINGENCIA"
+      ]
+    }
   }
 }

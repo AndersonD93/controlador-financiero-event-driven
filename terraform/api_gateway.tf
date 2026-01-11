@@ -30,7 +30,7 @@ module "api_resource_MovimientosCuentasAltoRendimiento" {
       passthrough_behavior = "WHEN_NO_MATCH"
       response_models      = { "application/json" = "Empty" }
       stage_name           = "prd"
-      url_cors_allow       = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
     },
     "post_MovimientosCuentasAltoRendimiento" = {
       resource_id      = module.api_control_financiero.api_resource_ids["MovimientosCuentasAltoRendimiento"]
@@ -41,7 +41,7 @@ module "api_resource_MovimientosCuentasAltoRendimiento" {
       uri              = module.lambdas_backend_api.invoke_arn["MovimientosCuentasAltoRendimiento"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
-      url_cors_allow   = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
     }
   }
 }
@@ -61,7 +61,7 @@ module "api_resource_ParametrizarConceptosAhorro" {
       passthrough_behavior = "WHEN_NO_MATCH"
       response_models      = { "application/json" = "Empty" }
       stage_name           = "prd"
-      url_cors_allow       = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
     },
     "post_ParametrizarConceptosAhorro" = {
       resource_id      = module.api_control_financiero.api_resource_ids["ParametrizarConceptosAhorro"]
@@ -72,7 +72,7 @@ module "api_resource_ParametrizarConceptosAhorro" {
       uri              = module.lambdas_backend_api.invoke_arn["ParametrizarConceptosAhorro"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
-      url_cors_allow   = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
     }
   }
 }
@@ -92,7 +92,7 @@ module "api_resource_MovimientosTarjetas" {
       passthrough_behavior = "WHEN_NO_MATCH"
       response_models      = { "application/json" = "Empty" }
       stage_name           = "prd"
-      url_cors_allow       = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
     },
     "MovimientosTarjetas_post" = {
       resource_id      = module.api_control_financiero.api_resource_ids["MovimientosTarjetas"]
@@ -103,7 +103,7 @@ module "api_resource_MovimientosTarjetas" {
       uri              = module.lambdas_backend_api.invoke_arn["MovimientosTarjetas"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
-      url_cors_allow   = "'${module.resources.s3_bucket_website_url}'"
+      url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
     }/*,
     "manage_matches_get" = {
       resource_id      = module.api_bets_manager.api_resource_ids["manage_matches"]

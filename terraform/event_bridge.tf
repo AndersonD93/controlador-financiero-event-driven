@@ -34,7 +34,6 @@ resource "aws_iam_role_policy" "pipe_policy" {
             module.dynamo_tables_control_financiero.dynamo_table_stream_arn["HistoriaTarjetas"],
             module.dynamo_tables_control_financiero.dynamo_table_stream_arn["ConceptosFijosObligaciones"],
             module.dynamo_tables_control_financiero.dynamo_table_stream_arn["HistoriaCuentasAltoRendimiento"],
-            module.dynamo_tables_control_financiero.dynamo_table_stream_arn["ConceptosFijosPersonal"],
             module.dynamo_tables_control_financiero.dynamo_table_stream_arn["ConceptosFijosPersonal"]
         ]
       },

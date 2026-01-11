@@ -20,5 +20,13 @@
       "TARJETA VISA BDO",
       "TARJETA MASTERCARD BDO",
       "TARJETA MASTERCARD NU"]
+  },
+  "AHORRO": {
+    "CUENTAS": [
+      "BDO",
+      "KUBO",
+      "NEQUI",
+      "BANCOLOMBIA"
+    ]
   }
 }

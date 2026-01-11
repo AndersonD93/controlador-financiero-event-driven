@@ -1,6 +1,8 @@
-output "s3_bucket_website_url" {
-  value = module.resources.s3_bucket_website_url
+output "s3_bucket_website_urls" {
+  description = "Website URLs expuestas por el módulo de S3"
+  value       = module.s3.s3_bucket_website_urls
 }
+
 /*
 output "arn_api_gateway" {
   value = module.api_bets_manager.api_arn
