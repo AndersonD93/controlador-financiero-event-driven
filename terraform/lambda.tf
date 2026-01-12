@@ -42,6 +42,19 @@ module "lambdas_backend_api" {
       environment_variables = {
         "flujo_caja_table" = module.dynamo_tables_control_financiero.dynamo_table_name["FlujoDeCaja"]
       }
+    },
+    EmbeddingsToOpenSearch = {
+      lambda_name = "EmbeddingsToOpenSearch"
+      handler     = "EmbeddingsToOpenSearch.lambda_handler"
+      runtime     = "python3.12"
+      layers = [
+        aws_lambda_layer_version.python_deps.arn
+      ]
+      environment_variables = {
+        "OPENSEARCH_ENDPOINT" = aws_opensearchserverless_collection.rag.collection_endpoint
+        "INDEX_NAME"          = "flujo_caja_vectors"
+        "BEDROCK_MODEL"       = "amazon.titan-embed-text-v1"
+      }
     }
   }
 }
@@ -78,9 +91,30 @@ module "lambda_permission_api" {
       lambda_name = module.lambdas_backend_api.lambda_name["CierreMensual"]
       source_arn  = [aws_cloudwatch_event_rule.mensual.arn]
       principal   = "events.amazonaws.com"
-    }  
+    },
+    "EmbeddingsToOpenSearch" = {
+      lambda_name = module.lambdas_backend_api.lambda_name["EmbeddingsToOpenSearch"]
+      source_arn  = [aws_cloudwatch_event_rule.mensual.arn]
+      principal   = "events.amazonaws.com"
+    }    
   }
 }
+
+data "archive_file" "python_layer_zip" {
+  type        = "zip"
+  source_dir  = "${path.root}/templates/layer"
+  output_path = "${path.root}/templates/layer/python_deps_layer.zip"
+}
+
+resource "aws_lambda_layer_version" "python_deps" {
+  layer_name          = "python-deps-opensearch"
+  filename            = data.archive_file.python_layer_zip.output_path
+  source_code_hash    = data.archive_file.python_layer_zip.output_base64sha256
+  compatible_runtimes = ["python3.11", "python3.12"]
+
+  description = "Dependencias Python para OpenSearch + Bedrock embeddings"
+}
+
 /*
 resource "aws_lambda_event_source_mapping" "dynamodb_stream_trigger" {
   event_source_arn  = module.dynamo_tables_bets_manager.dynamo_table_stream_arn

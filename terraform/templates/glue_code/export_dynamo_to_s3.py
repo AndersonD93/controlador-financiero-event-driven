@@ -1,4 +1,5 @@
 import sys
+import boto3
 from awsglue.utils import getResolvedOptions
 from awsglue.context import GlueContext
 from pyspark.context import SparkContext
@@ -17,6 +18,8 @@ args = getResolvedOptions(sys.argv, [
 sc = SparkContext()
 glueContext = GlueContext(sc)
 spark = glueContext.spark_session
+
+s3 = boto3.client("s3")
 
 # =====================
 # Lectura DynamoDB
@@ -44,6 +47,11 @@ df = (
 )
 
 # =====================
+# Mes actual
+# =====================
+mes_actual = F.date_format(F.current_date(), "yyyy-MM")
+
+# =====================
 # Reglas de signo
 # =====================
 df = df.withColumn(
@@ -60,34 +68,35 @@ df = df.withColumn(
 )
 
 # =====================
-# Detalle CAJA ACTUAL
+# CAJA ACTUAL
 # =====================
 detalle_caja = (
     df.filter(F.col("bloque") == "CAJA_ACTUAL")
+      .groupBy("dominio", F.lit(mes_actual).alias("corte"), "origen")
+      .agg(F.sum("valor_ajustado").alias("valor_ajustado"))
       .select(
           "dominio",
+          "corte",
           F.lit("CAJA_ACTUAL").alias("seccion"),
-          "concepto",
+          F.col("origen").alias("concepto"),
           "valor_ajustado"
       )
 )
 
-# =====================
-# Total CAJA ACTUAL
-# =====================
 total_caja = (
     detalle_caja
-        .groupBy("dominio")
+        .groupBy("dominio", "corte")
         .agg(F.sum("valor_ajustado").alias("valor_ajustado"))
         .withColumn("seccion", F.lit("TOTAL_CAJA_ACTUAL"))
         .withColumn("concepto", F.lit(""))
 )
 
 # =====================
-# PROYECCION por corte (detalle)
+# PROYECCIÓN
 # =====================
 detalle_proyeccion = (
     df.filter(F.col("bloque") == "PROYECCION")
+      .filter(F.col("corte") >= mes_actual)
       .select(
           "dominio",
           "corte",
@@ -97,58 +106,139 @@ detalle_proyeccion = (
       )
 )
 
-# =====================
-# Total PROYECCION por corte
-# =====================
-total_proyeccion = (
+proyeccion_total = (
     detalle_proyeccion
         .groupBy("dominio", "corte")
-        .agg(F.sum("valor_ajustado").alias("valor_ajustado"))
-        .withColumn(
-            "seccion",
-            F.concat(F.lit("CAJA_PROYECTADA_A_CORTE_"), F.col("corte"))
+        .agg(F.sum("valor_ajustado").alias("total_proyeccion"))
+)
+
+window_cortes = (
+    Window.partitionBy("dominio")
+          .orderBy("corte")
+          .rowsBetween(Window.unboundedPreceding, 0)
+)
+
+proyeccion_acumulada = (
+    proyeccion_total
+        .join(
+            total_caja.select(
+                "dominio",
+                F.col("valor_ajustado").alias("total_caja_actual")
+            ),
+            "dominio",
+            "left"
         )
-        .withColumn("concepto", F.lit(""))
+        .withColumn(
+            "acumulado_proyeccion",
+            F.sum("total_proyeccion").over(window_cortes)
+        )
+        .withColumn(
+            "valor_ajustado",
+            F.col("total_caja_actual") + F.col("acumulado_proyeccion")
+        )
+        .select(
+            "dominio",
+            "corte",
+            F.concat(
+                F.lit("CAJA_PROYECTADA_A_CORTE_"),
+                F.col("corte")
+            ).alias("seccion"),
+            F.lit("").alias("concepto"),
+            "valor_ajustado"
+        )
 )
 
 # =====================
-# Unión completa (incluye AHORRO)
+# Unión final
 # =====================
 resultado = (
     detalle_caja
         .unionByName(total_caja)
-        .unionByName(
-            detalle_proyeccion.select("dominio", "seccion", "concepto", "valor_ajustado"),
-            allowMissingColumns=True
-        )
-        .unionByName(
-            total_proyeccion.select("dominio", "seccion", "concepto", "valor_ajustado"),
-            allowMissingColumns=True
-        )
+        .unionByName(detalle_proyeccion)
+        .unionByName(proyeccion_acumulada)
 )
 
 # =====================
-# Orden contable
+# Orden final
 # =====================
 resultado = resultado.orderBy(
     "dominio",
+    "corte",
     F.when(F.col("seccion") == "CAJA_ACTUAL", 1)
      .when(F.col("seccion") == "TOTAL_CAJA_ACTUAL", 2)
-     .when(F.col("seccion").startswith("PROYECCION"), 3)
+     .when(F.col("seccion") == "PROYECCION", 3)
      .otherwise(4),
     "concepto"
 )
 
-# =====================
-# Escritura CSV
-# =====================
-(
-    resultado
-        .coalesce(1)
-        .write
-        .mode("overwrite")
-        .option("header", "true")
-        .csv(args["OUTPUT_S3_PATH"].rstrip("/") + "/flujo_caja_detallado")
+# ============================================================
+# =============== SALIDA 1: CSV FLUJO DE CAJA =================
+# ============================================================
+tmp_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/_tmp_flujo_caja"
+
+resultado.coalesce(1).write.mode("overwrite").option("header", "true").csv(tmp_path)
+
+fecha = spark.sql(
+    "SELECT date_format(current_date(), 'dd-MM-yy') AS f"
+).collect()[0]["f"]
+
+bucket = tmp_path.replace("s3://", "").split("/")[0]
+prefix = "/".join(tmp_path.replace("s3://", "").split("/")[1:])
+
+objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
+csv_file = [o["Key"] for o in objects["Contents"] if o["Key"].endswith(".csv")][0]
+
+final_key = (
+    args["OUTPUT_S3_PATH"].rstrip("/").replace("s3://", "").split("/", 1)[1]
+    + f"/reporte_flujo_caja_{fecha}.csv"
 )
 
-print("Reporte CSV detallado generado correctamente")
+s3.copy_object(
+    Bucket=bucket,
+    CopySource={"Bucket": bucket, "Key": csv_file},
+    Key=final_key
+)
+
+s3.delete_object(Bucket=bucket, Key=csv_file)
+
+print(f"CSV generado: s3://{bucket}/{final_key}")
+
+# ============================================================
+# ================= SALIDA 2: JSONL PARA RAG ==================
+# ============================================================
+rag_df = (
+    resultado
+        .withColumn(
+            "texto",
+            F.concat(
+                F.lit("En el dominio "),
+                F.col("dominio"),
+                F.lit(", para el periodo "),
+                F.col("corte"),
+                F.lit(", el concepto "),
+                F.when(F.col("concepto") == "", F.col("seccion"))
+                 .otherwise(F.col("concepto")),
+                F.lit(" tiene un valor de "),
+                F.format_number(F.col("valor_ajustado"), 0)
+            )
+        )
+        .withColumn(
+            "id",
+            F.concat_ws("_", "dominio", "corte", "seccion", "concepto")
+        )
+        .select(
+            "id",
+            "dominio",
+            "corte",
+            "seccion",
+            "concepto",
+            F.col("texto"),
+            F.col("valor_ajustado").alias("valor")
+        )
+)
+
+rag_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/rag"
+
+rag_df.coalesce(1).write.mode("overwrite").json(rag_path)
+
+print(f"RAG JSONL generado en: {rag_path}")

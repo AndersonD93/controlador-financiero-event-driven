@@ -71,6 +71,40 @@ data "aws_iam_policy_document" "lambda_policy" {
       "*"
     ]
   }
+  statement {
+    actions = [
+      "s3:GetObject",
+      "s3:ListBucket"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "bedrock:InvokeModel"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "aoss:APIAccessAll"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
 }
 
 resource "aws_iam_role_policy_attachment" "lambda_policy_attachment" {

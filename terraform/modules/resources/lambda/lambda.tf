@@ -13,8 +13,10 @@ resource "aws_lambda_function" "lambda_function" {
   runtime       = each.value.runtime
   filename      = data.archive_file.lambda_package[each.key].output_path
 
+  layers = lookup(each.value, "layers", null)
+
   environment {
-    variables = each.value.environment_variables
+    variables = lookup(each.value, "environment_variables", {})
   }
 }
 
