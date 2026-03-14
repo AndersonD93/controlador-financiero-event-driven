@@ -22,6 +22,11 @@ locals {
   }
 }
 
+locals {
+  intents_template = "${path.root}/templates/reglas/intenciones.json.tpl"
+  intents_hash = md5(file(local.intents_template))
+}
+
 /*
   dynamo_tables_list_name = {
     table_lock   = "${var.project}-state-locking"

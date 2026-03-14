@@ -69,7 +69,7 @@ resource "aws_glue_job" "export_dynamo_to_s3" {
     "--enable-continuous-cloudwatch-log" = "true"
     "--enable-metrics"     = ""
     "--DYNAMO_TABLE"       = module.dynamo_tables_control_financiero.dynamo_table_name["FlujoDeCaja"]
-    "--OUTPUT_S3_PATH"     = "s3://${module.s3.bucket_names["reporting"]}/reports/"
+    "--OUTPUT_S3_PATH"     = "s3://${module.s3.bucket_names["reporting"]}/output/"
   }
 }
 

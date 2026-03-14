@@ -148,4 +148,28 @@ resource "aws_cloudwatch_event_target" "lambda_target" {
   arn       = module.lambdas_backend_api.lambda_arns["CierreMensual"]
 }
 
+resource "aws_cloudwatch_event_target" "lambda_target_proyecciones_fijas" {
+  rule      = aws_cloudwatch_event_rule.mensual.name
+  target_id = "proyecciones-fijas"
+  arn       = module.lambdas_backend_api.lambda_arns["ProyeccionesFijas"]
+}
 
+resource "aws_cloudwatch_event_rule" "semantic_router_update" {
+
+  name = "semantic-router-update"
+
+  event_pattern = jsonencode({
+    source = ["aws.ssm"]
+    "detail-type" = ["Parameter Store Change"]
+    detail = {
+      name = ["/ai-router/intents"]
+      operation = ["Create","Update"]
+    }
+  })
+}
+
+resource "aws_cloudwatch_event_target" "invoke_update_embeddings" {
+
+  rule = aws_cloudwatch_event_rule.semantic_router_update.name
+  arn  =  module.lambdas_backend_api.lambda_arns["ActualizaEmbeddings"]
+}

@@ -174,7 +174,7 @@ resultado = resultado.orderBy(
 # ============================================================
 # =============== SALIDA 1: CSV FLUJO DE CAJA =================
 # ============================================================
-tmp_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/_tmp_flujo_caja"
+tmp_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/reports"
 
 resultado.coalesce(1).write.mode("overwrite").option("header", "true").csv(tmp_path)
 
@@ -188,10 +188,9 @@ prefix = "/".join(tmp_path.replace("s3://", "").split("/")[1:])
 objects = s3.list_objects_v2(Bucket=bucket, Prefix=prefix)
 csv_file = [o["Key"] for o in objects["Contents"] if o["Key"].endswith(".csv")][0]
 
-final_key = (
-    args["OUTPUT_S3_PATH"].rstrip("/").replace("s3://", "").split("/", 1)[1]
-    + f"/reporte_flujo_caja_{fecha}.csv"
-)
+base_prefix = "/".join(tmp_path.replace("s3://", "").split("/")[1:])
+
+final_key = f"{base_prefix}/reporte_flujo_caja_{fecha}.csv"
 
 s3.copy_object(
     Bucket=bucket,
@@ -206,36 +205,84 @@ print(f"CSV generado: s3://{bucket}/{final_key}")
 # ============================================================
 # ================= SALIDA 2: JSONL PARA RAG ==================
 # ============================================================
+
+mes_actual_str = spark.sql(
+    "SELECT date_format(current_date(), 'yyyy-MM') AS f"
+).collect()[0]["f"]
+
 rag_df = (
     resultado
+        # ---------------------------
+        # Clasificación semántica
+        # ---------------------------
+        .withColumn(
+            "tipo_registro",
+            F.when(F.col("concepto") == "", "TOTAL")
+             .otherwise("DETALLE")
+        )
+        .withColumn(
+            "categoria_bloque",
+            F.when(F.col("seccion").like("%CAJA_ACTUAL%"), "CAJA_ACTUAL")
+             .when(F.col("seccion").like("%PROYECCION%"), "PROYECCION")
+             .otherwise("OTRO")
+        )
+        .withColumn(
+            "es_futuro",
+            F.when(F.col("corte") >= mes_actual_str, True)
+             .otherwise(False)
+        )
+
+        # ---------------------------
+        # Texto optimizado para RAG
+        # ---------------------------
         .withColumn(
             "texto",
             F.concat(
-                F.lit("En el dominio "),
+                F.lit("Dominio financiero: "),
                 F.col("dominio"),
-                F.lit(", para el periodo "),
+                F.lit(". Periodo: "),
                 F.col("corte"),
-                F.lit(", el concepto "),
-                F.when(F.col("concepto") == "", F.col("seccion"))
-                 .otherwise(F.col("concepto")),
-                F.lit(" tiene un valor de "),
+                F.lit(". Sección: "),
+                F.col("seccion"),
+                F.lit(". "),
+                F.when(F.col("concepto") != "", 
+                       F.concat(F.lit("Concepto: "), F.col("concepto"), F.lit(". "))
+                ).otherwise(F.lit("")),
+                F.lit("Tipo registro: "),
+                F.col("tipo_registro"),
+                F.lit(". Valor calculado: "),
                 F.format_number(F.col("valor_ajustado"), 0)
             )
         )
+
+        # ---------------------------
+        # ID estable
+        # ---------------------------
         .withColumn(
             "id",
             F.concat_ws("_", "dominio", "corte", "seccion", "concepto")
         )
+
+        # ---------------------------
+        # Selección final estructurada
+        # ---------------------------
         .select(
             "id",
             "dominio",
             "corte",
+            "categoria_bloque",
+            "tipo_registro",
+            "es_futuro",
             "seccion",
             "concepto",
-            F.col("texto"),
-            F.col("valor_ajustado").alias("valor")
+            F.col("valor_ajustado").alias("valor"),
+            "texto"
         )
 )
+
+# ============================================================
+# Escritura en ruta independiente definida por parámetro
+# ============================================================
 
 rag_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/rag"
 

@@ -18,13 +18,25 @@ resource "aws_cognito_user_group" "general_group" {
 }
 
 resource "aws_cognito_user_pool_client" "app_control_financiero_manager" {
-  name         = "app-bets-manager"
+  name         = "app-control-financiero"
   user_pool_id = aws_cognito_user_pool.control_financiero_pool.id
 
   explicit_auth_flows = [
     "ALLOW_USER_SRP_AUTH",
-    "ALLOW_REFRESH_TOKEN_AUTH"
+    "ALLOW_REFRESH_TOKEN_AUTH",
+    "ALLOW_USER_PASSWORD_AUTH"
   ]
+
+  access_token_validity  = 60
+  id_token_validity      = 60
+  refresh_token_validity = 30
+
+  token_validity_units {
+    access_token  = "minutes"
+    id_token      = "minutes"
+    refresh_token = "days"
+  }
+
   generate_secret               = false
 }
 

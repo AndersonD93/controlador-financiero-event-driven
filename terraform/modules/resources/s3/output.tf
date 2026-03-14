@@ -13,3 +13,11 @@ output "bucket_names" {
     k => b.bucket
   }
 }
+
+output "bucket_arns" {
+  description = "Mapa con los ARNs de los buckets S3 creados"
+  value = {
+    for k, b in aws_s3_bucket.this :
+    k => b.arn
+  }
+}

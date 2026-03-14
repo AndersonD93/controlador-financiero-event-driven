@@ -1,47 +1,29 @@
 import boto3
 import os
-import json
 import logging
 from datetime import datetime
 from decimal import Decimal
+
+from catalogo_financiero import cargar_catalogo
 
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
 # AWS clients
 dynamodb = boto3.resource("dynamodb")
-ssm = boto3.client("ssm")
-
-CATALOGO_PARAM = "/flujo-caja/catalogo-conceptos"
 
 table = dynamodb.Table(os.getenv("flujo_caja_table"))
-
-
-def cargar_catalogo():
-    """
-    Obtiene el catálogo de conceptos desde SSM Parameter Store
-    """
-    try:
-        response = ssm.get_parameter(
-            Name=CATALOGO_PARAM,
-            WithDecryption=True
-        )
-        return json.loads(response["Parameter"]["Value"])
-    except Exception as e:
-        logger.critical(
-            f"No fue posible cargar el catálogo desde SSM ({CATALOGO_PARAM})",
-            exc_info=True
-        )
-        raise e
 
 
 def obtener_cortes():
     hoy = datetime.utcnow()
     corte_actual = hoy.strftime("%Y-%m")
+
     if hoy.month == 12:
         corte_siguiente = f"{hoy.year + 1}-01"
     else:
         corte_siguiente = f"{hoy.year}-{hoy.month + 1:02d}"
+
     return corte_actual, corte_siguiente
 
 
@@ -53,7 +35,7 @@ def lambda_handler(event, context):
     try:
         logger.info("INICIO CIERRE MENSUAL")
 
-        # 1. Cargar catálogo desde SSM
+        # 1️⃣ Cargar catálogo desde el Layer (ya no desde SSM directo)
         catalogo = cargar_catalogo()
 
         corte_actual, corte_siguiente = obtener_cortes()
@@ -123,7 +105,7 @@ def lambda_handler(event, context):
                             f"SALDO_INICIAL creado ({dominio} | {tipo} | {origen}): {total}"
                         )
 
-                    except Exception as e:
+                    except Exception:
                         logger.error(
                             f"Error procesando {dominio} {tipo} {origen}",
                             exc_info=True
@@ -132,9 +114,9 @@ def lambda_handler(event, context):
         logger.info("CIERRE MENSUAL FINALIZADO")
         return {"status": "OK"}
 
-    except Exception as e:
+    except Exception:
         logger.critical(
             "ERROR GENERAL EN CIERRE MENSUAL",
             exc_info=True
         )
-        raise e
+        raise

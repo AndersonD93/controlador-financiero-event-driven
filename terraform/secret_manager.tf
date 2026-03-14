@@ -1,3 +1,10 @@
+resource "aws_secretsmanager_secret" "slack_webhook_secret" {
+  name        = "slack/webhook/credentials"
+  description = "Slack webhook credentials"
+
+  recovery_window_in_days = 7
+}
+
 /*
 data "aws_secretsmanager_secret" "secret_public_api" {
   name = "project/footbal-data"

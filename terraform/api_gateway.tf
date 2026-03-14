@@ -4,7 +4,7 @@ module "api_control_financiero" {
   name_api        = "api_control_financiero_moduls"
   description_api = "api para gestionar peticiones para backends logica de aplicación"
   type_endpoint   = "REGIONAL"
-  path_part_list  = ["MovimientosCuentasAltoRendimiento", "ParametrizarConceptosAhorro", "MovimientosTarjetas"]
+  path_part_list  = ["MovimientosCuentasEInversiones", "ParametrizarConceptosAhorro", "MovimientosTarjetas","QueryRagEmbedding","SlackEvents"]
 }
 
 resource "aws_api_gateway_authorizer" "cognito_authorizer_module" {
@@ -15,14 +15,14 @@ resource "aws_api_gateway_authorizer" "cognito_authorizer_module" {
   provider_arns   = [aws_cognito_user_pool.control_financiero_pool.arn]
 }
 
-module "api_resource_MovimientosCuentasAltoRendimiento" {
+module "api_resource_MovimientosCuentasEInversiones" {
   source               = "./modules/resources/api_gateway/api_resources"
   api_id               = module.api_control_financiero.api_id
   api_root_resource_id = module.api_control_financiero.api_root_resource_id
 
   api_resources = {
-    "put_MovimientosCuentasAltoRendimiento_options" = {
-      resource_id          = module.api_control_financiero.api_resource_ids["MovimientosCuentasAltoRendimiento"]
+    "put_MovimientosCuentasEInversiones_options" = {
+      resource_id          = module.api_control_financiero.api_resource_ids["MovimientosCuentasEInversiones"]
       http_method          = "OPTIONS"
       authorization        = "NONE"
       type_integration     = "MOCK"
@@ -32,13 +32,13 @@ module "api_resource_MovimientosCuentasAltoRendimiento" {
       stage_name           = "prd"
       url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
     },
-    "post_MovimientosCuentasAltoRendimiento" = {
-      resource_id      = module.api_control_financiero.api_resource_ids["MovimientosCuentasAltoRendimiento"]
+    "post_MovimientosCuentasEInversiones" = {
+      resource_id      = module.api_control_financiero.api_resource_ids["MovimientosCuentasEInversiones"]
       http_method      = "POST"
       authorization    = "COGNITO_USER_POOLS"
       authorizer_id    = aws_api_gateway_authorizer.cognito_authorizer_module.id
       type_integration = "AWS_PROXY"
-      uri              = module.lambdas_backend_api.invoke_arn["MovimientosCuentasAltoRendimiento"]
+      uri              = module.lambdas_backend_api.invoke_arn["MovimientosCuentasEInversiones"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
       url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
@@ -70,6 +70,37 @@ module "api_resource_ParametrizarConceptosAhorro" {
       authorizer_id    = aws_api_gateway_authorizer.cognito_authorizer_module.id
       type_integration = "AWS_PROXY"
       uri              = module.lambdas_backend_api.invoke_arn["ParametrizarConceptosAhorro"]
+      response_models  = { "application/json" = "Empty" }
+      stage_name       = "prd"
+      url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
+    }
+  }
+}
+
+module "api_resource_QueryRagEmbedding" {
+  source               = "./modules/resources/api_gateway/api_resources"
+  api_id               = module.api_control_financiero.api_id
+  api_root_resource_id = module.api_control_financiero.api_root_resource_id
+
+  api_resources = {
+    "QueryRagEmbedding_options" = {
+      resource_id          = module.api_control_financiero.api_resource_ids["QueryRagEmbedding"]
+      http_method          = "OPTIONS"
+      authorization        = "NONE"
+      type_integration     = "MOCK"
+      request_templates    = { "application/json" = "{\"statusCode\": 200}" }
+      passthrough_behavior = "WHEN_NO_MATCH"
+      response_models      = { "application/json" = "Empty" }
+      stage_name           = "prd"
+      url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
+    },
+    "QueryRagEmbedding_post" = {
+      resource_id      = module.api_control_financiero.api_resource_ids["QueryRagEmbedding"]
+      http_method      = "POST"
+      authorization    = "COGNITO_USER_POOLS"
+      authorizer_id    = aws_api_gateway_authorizer.cognito_authorizer_module.id
+      type_integration = "AWS_PROXY"
+      uri              = module.lambdas_backend_api.invoke_arn["QueryRagEmbedding"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
       url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
@@ -116,6 +147,36 @@ module "api_resource_MovimientosTarjetas" {
       stage_name       = "prd"
       url_cors_allow   = "'${module.resources.s3_bucket_website_url}'"
     }*/
+  }
+}
+
+module "api_resource_SlackEvents" {
+  source               = "./modules/resources/api_gateway/api_resources"
+  api_id               = module.api_control_financiero.api_id
+  api_root_resource_id = module.api_control_financiero.api_root_resource_id
+
+  api_resources = {
+    "put_slackEvents_options" = {
+      resource_id          = module.api_control_financiero.api_resource_ids["SlackEvents"]
+      http_method          = "OPTIONS"
+      authorization        = "NONE"
+      type_integration     = "MOCK"
+      request_templates    = { "application/json" = "{\"statusCode\": 200}" }
+      passthrough_behavior = "WHEN_NO_MATCH"
+      response_models      = { "application/json" = "Empty" }
+      stage_name           = "prd"
+      url_cors_allow       = "'${module.s3.s3_bucket_website_urls["host"]}'"
+    },
+    "post_SlackEvents" = {
+      resource_id      = module.api_control_financiero.api_resource_ids["SlackEvents"]
+      http_method      = "POST"
+      authorization    = "NONE"
+      type_integration = "AWS_PROXY"
+      uri              = module.lambdas_backend_api.invoke_arn["WebhookHandler"]
+      response_models  = { "application/json" = "Empty" }
+      stage_name       = "prd"
+      url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"
+    }
   }
 }
 

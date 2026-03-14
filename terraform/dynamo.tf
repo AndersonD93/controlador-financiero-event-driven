@@ -100,7 +100,7 @@ module "table_permission" {
     },
     HistoriaCuentasAltoRendimiento = {
       table_arn               = module.dynamo_tables_control_financiero.dynamo_table_arn["HistoriaCuentasAltoRendimiento"]
-      roles_lambda_principals = [module.lambdas_backend_api.lambda_role_arns["MovimientosCuentasAltoRendimiento"]]
+      roles_lambda_principals = [module.lambdas_backend_api.lambda_role_arns["MovimientosCuentasEInversiones"]]
     },
     ConceptosFijosPersonal = {
       table_arn               = module.dynamo_tables_control_financiero.dynamo_table_arn["ConceptosFijosPersonal"]

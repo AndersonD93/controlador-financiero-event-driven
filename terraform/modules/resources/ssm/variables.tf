@@ -13,7 +13,8 @@ variable "reglas_path" {
   type        = string
 }
 
-variable "catalogo_cuentas_path" {
-  description = "Ruta al JSON del catálogo de cuentas"
+variable "proyeccion_fija_path" {
+  description = "Ruta al JSON de proyecciones fijas"
   type        = string
 }
+

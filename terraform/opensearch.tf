@@ -1,4 +1,4 @@
-resource "aws_opensearchserverless_collection" "rag" {
+/*resource "aws_opensearchserverless_collection" "rag" {
   name = "flujo-caja-rag"
   type = "VECTORSEARCH"
 
@@ -63,3 +63,4 @@ resource "aws_opensearchserverless_access_policy" "rag_access" {
     }
   ])
 }
+*/

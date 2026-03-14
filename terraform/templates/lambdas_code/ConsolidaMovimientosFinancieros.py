@@ -228,6 +228,8 @@ def lambda_handler(event, context):
                         concepto,
                         origen
                     )
+                    
+                    print(f"DEBUG SK GENERADO → PK: {pk} | SK: {sk} | Monto: {monto}")
 
                     print(
                         f"CHECKPOINT 9 - APLICANDO REGLA {regla['id']} "

@@ -7,5 +7,6 @@ variable "lambda_map" {
     runtime               = string
     environment_variables = optional(map(string))
     layers                = optional(list(string))
+    timeout               = optional(number)
   }))
 }

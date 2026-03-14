@@ -5,6 +5,7 @@ variable "s3_buckets" {
     website         = bool
     public_access   = bool
     lifecycle_days  = optional(number)
+    versioning      = optional(bool, false)
   }))
 }
 

@@ -1,0 +1,95 @@
+{
+  "CASA": {
+    "CAJA_ACTUAL": {
+      "CUENTA": [
+        "BDO",
+        "KUBO",
+        "NEQUI",
+        "EFECTIVO"
+      ],
+      "TARJETA": [
+        "TARJETA VISA BDO",
+        "TARJETA MASTERCARD BDO"
+      ],
+      "INGRESO": [
+        "INGRESO HOGAR"
+      ]
+    },
+    "PROYECCION": {
+      "CONCEPTOS": [
+        "INGRESO HOGAR",
+        "SALUD",
+        "SERVICIOS",
+        "ALIMENTACION",
+        "AUTOMOVIL",
+        "HIPOTECARIO",
+        "ADMINISTRACION",
+        "ESTUDIO",
+        "SALDO_INICIAL"
+      ]
+    }
+  },
+
+  "PERSONAL": {
+    "CAJA_ACTUAL": {
+      "CUENTA": [
+        "BDO",
+        "KUBO",
+        "NEQUI",
+        "EFECTIVO"
+      ],
+      "TARJETA": [
+        "TARJETA VISA BDO",
+        "TARJETA MASTERCARD BDO",
+        "TARJETA MASTERCARD NU"
+      ],
+      "INGRESO": [
+        "INGRESO SALARIO"
+      ]
+    },
+    "PROYECCION": {
+      "CONCEPTOS": [
+        "AHORRO PROYECTO FINCA",
+        "AHORRO CONTINGENCIA",
+        "SALDO_INICIAL",
+        "INGRESO SALARIO",
+        "APORTE HOGAR",
+        "DEUDA A CASA"
+      ]
+    }
+  },
+
+  "AHORRO": {
+    "CAJA_ACTUAL": {
+      "CUENTA": [
+        "BDO",
+        "KUBO",
+        "NEQUI",
+        "EFECTIVO"
+      ]
+    },
+    "PROYECCION": {
+      "CONCEPTOS": [
+        "AHORRO PROYECTO FINCA",
+        "AHORRO CONTINGENCIA",
+        "SALDO_INICIAL"
+      ]
+    }
+  },
+  "INVERSIONES": {
+    "CAJA_ACTUAL": {
+      "CDT": [
+        "CDT_BDO",
+        "CDT_TRII"
+      ],
+      "ACCIONES": [
+        "ACC_PFARGOS",
+        "ACC_NU"
+      ],
+      "MONEDAS": [
+        "MON_BITCOIN",
+        "MON_USD"
+      ]
+    }
+  }
+}

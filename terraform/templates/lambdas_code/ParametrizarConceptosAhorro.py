@@ -2,31 +2,24 @@ import json
 import boto3
 import os
 import uuid
-import time
 from datetime import datetime
-from botocore.exceptions import ClientError
+
+from catalogo_financiero import (
+    cargar_catalogo,
+    validar_dominio,
+    obtener_conceptos_validos
+)
 
 # =========================
 # AWS clients
 # =========================
 dynamodb = boto3.resource("dynamodb")
-ssm = boto3.client("ssm")
 
 # =========================
 # DynamoDB tables
 # =========================
 table_casa = dynamodb.Table(os.getenv("conceptos_fijos_table"))
 table_personal = dynamodb.Table(os.getenv("conceptos_fijos_persona_table"))
-
-# =========================
-# Parameter Store
-# =========================
-CATALOGO_PARAM = "/flujo-caja/catalogo-conceptos"
-
-# Cache globals (persisten entre invocaciones warm)
-CATALOGO_CACHE = None
-CATALOGO_CACHE_TS = 0
-CATALOGO_TTL_SECONDS = 600  # 10 minutos
 
 # =========================
 # Headers HTTP
@@ -38,44 +31,12 @@ HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
 }
 
-# =========================
-# Carga de catálogo con cache
-# =========================
-def cargar_catalogo():
-    global CATALOGO_CACHE, CATALOGO_CACHE_TS
 
-    now = time.time()
-
-    # Cache válido
-    if CATALOGO_CACHE and (now - CATALOGO_CACHE_TS) < CATALOGO_TTL_SECONDS:
-        return CATALOGO_CACHE
-
-    # Cold start o TTL vencido
-    try:
-        print("Cargando catálogo de conceptos desde Parameter Store")
-        response = ssm.get_parameter(
-            Name=CATALOGO_PARAM,
-            WithDecryption=False
-        )
-
-        CATALOGO_CACHE = json.loads(response["Parameter"]["Value"])
-        CATALOGO_CACHE_TS = now
-
-        return CATALOGO_CACHE
-
-    except ClientError as e:
-        raise Exception(f"No se pudo cargar el catálogo de conceptos: {str(e)}")
-
-# =========================
-# Lambda handler
-# =========================
 def lambda_handler(event, context):
     try:
         print(f"Evento recibido: {event}")
 
-        # Soporte API Gateway y llamada directa
         body = json.loads(event["body"]) if "body" in event and event["body"] else event
-        print(f"Body procesado: {body}")
 
         # =========================
         # Validación campos obligatorios
@@ -103,37 +64,44 @@ def lambda_handler(event, context):
         subconcepto = body.get("Subconcepto")
 
         # =========================
+        # Carga catálogo unificado
+        # =========================
+        catalogo = cargar_catalogo()
+
+        try:
+            validar_dominio(catalogo, dominio)
+        except ValueError as e:
+            return {
+                "statusCode": 400,
+                "headers": HEADERS,
+                "body": json.dumps({"message": str(e)})
+            }
+
+        # =========================
         # Selección de tabla
         # =========================
         if dominio == "CASA":
             table = table_casa
-        elif dominio in ["PERSONAL","AHORRO"]:
+        elif dominio in ["PERSONAL", "AHORRO", "INVERSIONES"]:
             table = table_personal
         else:
             return {
                 "statusCode": 400,
                 "headers": HEADERS,
                 "body": json.dumps({
-                    "message": "DominioFinanciero inválido. Valores permitidos: CASA, PERSONAL, AHORRO"
+                    "message": "DominioFinanciero inválido"
                 })
             }
 
         # =========================
-        # Validación contra catálogo (cacheado)
+        # Validación dinámica CONCEPTO
         # =========================
-        catalogo = cargar_catalogo()
 
-        try:
-            conceptos_validos = catalogo[dominio]["PROYECCION"]["GASTOS"]
-        except KeyError:
-            return {
-                "statusCode": 500,
-                "headers": HEADERS,
-                "body": json.dumps({
-                    "message": "Configuración inválida del catálogo para el dominio",
-                    "dominio": dominio
-                })
-            }
+        conceptos_validos = obtener_conceptos_validos(
+                catalogo,
+                dominio,
+                "PROYECCION"
+        )
 
         if concepto not in conceptos_validos:
             return {
@@ -142,7 +110,8 @@ def lambda_handler(event, context):
                 "body": json.dumps({
                     "message": "Concepto no permitido según el catálogo",
                     "concepto": concepto,
-                    "dominio": dominio
+                    "dominio": dominio,
+                    "permitidos": conceptos_validos
                 })
             }
 
@@ -155,11 +124,12 @@ def lambda_handler(event, context):
             "concepto": concepto,
             "valor": body["Valor"],
             "corte": body["Corte"],
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "origen_registro": "PROYECCION_MANUAL"
         }
 
         if subconcepto:
-            item["subconcepto"] = subconcepto.strip()
+            item["subconcepto"] = subconcepto.strip().upper()
 
         # =========================
         # Persistencia
@@ -170,7 +140,7 @@ def lambda_handler(event, context):
             "statusCode": 200,
             "headers": HEADERS,
             "body": json.dumps({
-                "message": "Concepto de ahorro registrado correctamente",
+                "message": "Concepto registrado correctamente",
                 "trx_id": item["trx_id"],
                 "tabla_destino": table.name
             })
@@ -182,7 +152,7 @@ def lambda_handler(event, context):
             "statusCode": 500,
             "headers": HEADERS,
             "body": json.dumps({
-                "message": "Error interno al registrar concepto de ahorro",
+                "message": "Error interno al registrar concepto",
                 "error": str(e)
             })
         }

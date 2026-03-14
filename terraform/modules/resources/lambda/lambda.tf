@@ -14,6 +14,7 @@ resource "aws_lambda_function" "lambda_function" {
   filename      = data.archive_file.lambda_package[each.key].output_path
 
   layers = lookup(each.value, "layers", null)
+  timeout = lookup(each.value, "timeout", 3)
 
   environment {
     variables = lookup(each.value, "environment_variables", {})

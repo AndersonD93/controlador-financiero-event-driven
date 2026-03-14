@@ -85,7 +85,7 @@ resource "aws_iam_role_policy" "admin_policy" {
         Action = [
           "lambda:InvokeFunction"
         ]
-        Resource = [module.lambdas_backend_api.lambda_arns["MovimientosTarjetas"], module.lambdas_backend_api.lambda_arns["ParametrizarConceptosAhorro"], module.lambdas_backend_api.lambda_arns["MovimientosCuentasAltoRendimiento"]]
+        Resource = [module.lambdas_backend_api.lambda_arns["MovimientosTarjetas"], module.lambdas_backend_api.lambda_arns["ParametrizarConceptosAhorro"], module.lambdas_backend_api.lambda_arns["MovimientosCuentasEInversiones"]]
       }
     ]
   })

@@ -24,6 +24,19 @@ resource "aws_s3_bucket_website_configuration" "website" {
   }
 }
 
+resource "aws_s3_bucket_versioning" "this" {
+  for_each = {
+    for k, v in var.s3_buckets :
+    k => v if try(v.versioning, false)
+  }
+
+  bucket = aws_s3_bucket.this[each.key].id
+
+  versioning_configuration {
+    status = "Enabled"
+  }
+}
+
 resource "aws_s3_bucket_public_access_block" "this" {
   for_each = var.s3_buckets
 

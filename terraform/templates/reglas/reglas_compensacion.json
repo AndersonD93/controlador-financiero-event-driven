@@ -6,7 +6,8 @@
       "bloque_origen": "CAJA_ACTUAL",
       "condicion_valor": "NEGATIVO",
       "requiere_cuenta": true,
-      "descripcion": "Toda cuenta con valor negativo debe disminuir el valor del gasto proyectado",
+      "descripcion": "Toda cuenta con valor negativo debe disminuir el valor del gasto proyectado con excepción del SALDO_INICIAL",
+      "excluir_conceptos": ["SALDO_INICIAL"],
       "acciones": [
         {
           "tipo_destino": "GASTO",

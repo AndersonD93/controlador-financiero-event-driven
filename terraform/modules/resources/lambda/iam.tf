@@ -60,20 +60,8 @@ data "aws_iam_policy_document" "lambda_policy" {
   }
   statement {
     actions = [
-      "ssm:GetParameter",
-      "ssm:GetParameters",
-      "ssm:GetParametersByPath"
-    ]
-
-    effect = "Allow"
-
-    resources = [
-      "*"
-    ]
-  }
-  statement {
-    actions = [
       "s3:GetObject",
+      "s3:ListBucket",
       "s3:ListBucket"
     ]
 
@@ -85,7 +73,7 @@ data "aws_iam_policy_document" "lambda_policy" {
   }
   statement {
     actions = [
-      "bedrock:InvokeModel"
+      "ssm:GetParameter"
     ]
 
     effect = "Allow"
@@ -96,7 +84,32 @@ data "aws_iam_policy_document" "lambda_policy" {
   }
   statement {
     actions = [
-      "aoss:APIAccessAll"
+      "bedrock:InvokeModel",
+      "bedrock:InvokeModelWithResponseStream"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "s3vectors:PutVectors",
+      "s3vectors:QueryVectors",
+      "s3vectors:GetVectors"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "secretsmanager:GetSecretValue"
     ]
 
     effect = "Allow"

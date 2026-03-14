@@ -2,37 +2,24 @@ import json
 import boto3
 import os
 import uuid
-import time
 from datetime import datetime
-from botocore.exceptions import ClientError
+
+from catalogo_financiero import (
+    cargar_catalogo,
+    validar_dominio,
+    obtener_cuentas_validas,
+    obtener_conceptos_validos
+)
 
 # =========================
 # AWS clients
 # =========================
 dynamodb = boto3.resource("dynamodb")
-ssm = boto3.client("ssm")
 
 # =========================
 # DynamoDB table
 # =========================
 table = dynamodb.Table(os.getenv("historia_tarjetas_table"))
-
-# =========================
-# Parameter Store paths
-# =========================
-CATALOGO_CUENTAS_PARAM = "/flujo-caja/catalogo-cuentas"
-CATALOGO_CONCEPTOS_PARAM = "/flujo-caja/catalogo-conceptos"
-
-# =========================
-# Cache globals
-# =========================
-CATALOGO_CUENTAS_CACHE = None
-CATALOGO_CUENTAS_TS = 0
-
-CATALOGO_CONCEPTOS_CACHE = None
-CATALOGO_CONCEPTOS_TS = 0
-
-CATALOGO_TTL_SECONDS = 600  # 10 minutos
 
 # =========================
 # Headers HTTP
@@ -44,55 +31,12 @@ HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
 }
 
-# =========================
-# Carga catálogo cuentas
-# =========================
-def cargar_catalogo_cuentas():
-    global CATALOGO_CUENTAS_CACHE, CATALOGO_CUENTAS_TS
 
-    now = time.time()
-    if CATALOGO_CUENTAS_CACHE and (now - CATALOGO_CUENTAS_TS) < CATALOGO_TTL_SECONDS:
-        return CATALOGO_CUENTAS_CACHE
-
-    response = ssm.get_parameter(
-        Name=CATALOGO_CUENTAS_PARAM,
-        WithDecryption=False
-    )
-
-    CATALOGO_CUENTAS_CACHE = json.loads(response["Parameter"]["Value"])
-    CATALOGO_CUENTAS_TS = now
-    return CATALOGO_CUENTAS_CACHE
-
-
-# =========================
-# Carga catálogo conceptos
-# =========================
-def cargar_catalogo_conceptos():
-    global CATALOGO_CONCEPTOS_CACHE, CATALOGO_CONCEPTOS_TS
-
-    now = time.time()
-    if CATALOGO_CONCEPTOS_CACHE and (now - CATALOGO_CONCEPTOS_TS) < CATALOGO_TTL_SECONDS:
-        return CATALOGO_CONCEPTOS_CACHE
-
-    response = ssm.get_parameter(
-        Name=CATALOGO_CONCEPTOS_PARAM,
-        WithDecryption=False
-    )
-
-    CATALOGO_CONCEPTOS_CACHE = json.loads(response["Parameter"]["Value"])
-    CATALOGO_CONCEPTOS_TS = now
-    return CATALOGO_CONCEPTOS_CACHE
-
-
-# =========================
-# Lambda handler
-# =========================
 def lambda_handler(event, context):
     try:
         print(f"Evento recibido: {event}")
 
         body = json.loads(event["body"]) if "body" in event and event["body"] else event
-        print(f"Body procesado: {body}")
 
         # =========================
         # Validación obligatoria
@@ -123,18 +67,34 @@ def lambda_handler(event, context):
         subconcepto = body.get("Subconcepto")
 
         # =========================
-        # Validación franquicia
+        # Carga catálogo unificado
         # =========================
-        catalogo_cuentas = cargar_catalogo_cuentas()
+        catalogo = cargar_catalogo()
 
         try:
-            tarjetas_validas = catalogo_cuentas[dominio]["TARJETAS"]
-        except KeyError:
+            validar_dominio(catalogo, dominio)
+        except ValueError as e:
+            return {
+                "statusCode": 400,
+                "headers": HEADERS,
+                "body": json.dumps({"message": str(e)})
+            }
+
+        # =========================
+        # Validación franquicia (dinámica)
+        # =========================
+        try:
+            tarjetas_validas = obtener_cuentas_validas(
+                catalogo,
+                dominio,
+                tipo="TARJETA"
+            )
+        except ValueError as e:
             return {
                 "statusCode": 500,
                 "headers": HEADERS,
                 "body": json.dumps({
-                    "message": "Configuración inválida del catálogo de cuentas",
+                    "message": str(e),
                     "dominio": dominio
                 })
             }
@@ -151,21 +111,21 @@ def lambda_handler(event, context):
             }
 
         # =========================
-        # Validación concepto
+        # Validación concepto (dinámica)
         # =========================
-        catalogo_conceptos = cargar_catalogo_conceptos()
-
         try:
-            conceptos_validos = catalogo_conceptos[dominio]["PROYECCION"]["GASTOS"]
-        except KeyError:
+            conceptos_validos = obtener_conceptos_validos(
+                catalogo,
+                dominio,
+                "PROYECCION"
+            )
+        except ValueError as e:
             return {
                 "statusCode": 500,
                 "headers": HEADERS,
                 "body": json.dumps({
-                    "message": "Configuración inválida del catálogo de conceptos",
-                    "dominio": dominio,
-                    "bloque": "CAJA_ACTUAL",
-                    "tipo": "TARJETA"
+                    "message": str(e),
+                    "dominio": dominio
                 })
             }
 
