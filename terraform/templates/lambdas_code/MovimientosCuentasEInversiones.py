@@ -3,12 +3,14 @@ import boto3
 import os
 import uuid
 from datetime import datetime
+from decimal import Decimal
 
 from catalogo_financiero import (
     cargar_catalogo,
     validar_dominio,
     obtener_origenes_validos,
-    obtener_conceptos_validos
+    obtener_conceptos_validos,
+    normalizar_evento
 )
 
 # =========================
@@ -31,15 +33,78 @@ HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
 }
 
+# =========================
+# 🧩 Helper respuesta
+# =========================
+def build_response(source, status, body):
+    if source == "apigateway":
+        return {
+            "statusCode": status,
+            "headers": HEADERS,
+            "body": json.dumps(body)
+        }
+    return {
+        "status": status,
+        "body": body
+    }
 
+
+def publicar_evento(detail_type, item, source, channel_id=None):
+    try:
+        eventbridge = boto3.client("events")
+
+        eventbridge.put_events(Entries=[{
+            "Source": "app.financiero",
+            "DetailType": detail_type,
+            "Detail": json.dumps({
+                "trx_id":            item["trx_id"],
+                "dominioFinanciero": item.get("dominioFinanciero"),
+                "concepto":          item.get("concepto") or item.get("descripcion"),
+                "descripcion":       item.get("descripcion"),
+                "valor":             str(item.get("valor")),
+                "corte":             item.get("corte"),
+                "user_id":           item.get("user_id"),
+                "source":            source,
+                "channel_id":        channel_id
+            }),
+            "EventBusName": os.getenv("EVENT_BUS_NAME")
+        }])
+
+        print(f"📡 Evento publicado: {detail_type}")
+
+    except Exception as e:
+        # No bloqueamos la respuesta principal si falla la notificación
+        print(f"⚠️ Error publicando evento en EventBridge: {str(e)}")
+
+# =========================
+# 🚀 Handler
+# =========================
 def lambda_handler(event, context):
     try:
-        print(f"Evento recibido: {event}")
-
-        body = json.loads(event["body"]) if "body" in event and event["body"] else event
+        print("🔥 EVENTO CRUDO:")
+        print(json.dumps(event, indent=2))
 
         # =========================
-        # Validación obligatoria
+        # 🧠 Normalización única
+        # =========================
+        payload, metadata, source = normalizar_evento(event)
+
+        if not isinstance(payload, dict):
+            print("⚠️ Payload inválido, se fuerza a {}")
+            payload = {}
+
+        metadata = metadata or {}
+
+        print("📦 Payload normalizado:")
+        print(json.dumps(payload, indent=2))
+
+        print("🧾 Metadata:")
+        print(json.dumps(metadata, indent=2))
+
+        print("🔎 Source:", source)
+
+        # =========================
+        # ✅ Validación obligatoria
         # =========================
         required_fields = [
             "Cuenta",
@@ -50,115 +115,133 @@ def lambda_handler(event, context):
             "DominioFinanciero"
         ]
 
-        missing = [f for f in required_fields if f not in body]
+        missing = [f for f in required_fields if not payload.get(f)]
+
         if missing:
-            return {
-                "statusCode": 400,
-                "headers": HEADERS,
-                "body": json.dumps({
-                    "message": "Campos obligatorios faltantes",
-                    "missing_fields": missing
-                })
+            error = {
+                "message": "Campos obligatorios faltantes",
+                "missing_fields": missing
             }
+            print("❌", error)
+            return build_response(source, 400, error)
 
         # =========================
-        # Normalización
+        # 🧠 Normalización de valores
         # =========================
-        cuenta = body["Cuenta"].strip().upper()
-        concepto = body["Descripcion"].strip().upper()
-        dominio = body["DominioFinanciero"].strip().upper()
-        subconcepto = body.get("Subconcepto")
+        cuenta = payload["Cuenta"].strip().upper()
+        concepto = payload["Descripcion"].strip().upper()
+        dominio = payload["DominioFinanciero"].strip().upper()
+        subconcepto = payload.get("Subconcepto")
 
         if subconcepto:
             subconcepto = subconcepto.strip().upper()
 
+        # 🔥 Normalizar valor numérico
+        try:
+            valor = Decimal(str(payload["Valor"]))
+        except Exception:
+            return build_response(source, 400, {
+                "message": "Valor debe ser numérico",
+                "valor_recibido": payload["Valor"]
+            })
+
         # =========================
-        # Carga catálogo unificado
+        # 📦 Cargar catálogo
         # =========================
         catalogo = cargar_catalogo()
 
+        # =========================
+        # ✅ Validar dominio
+        # =========================
         try:
             validar_dominio(catalogo, dominio)
         except ValueError as e:
-            return {
-                "statusCode": 400,
-                "headers": HEADERS,
-                "body": json.dumps({"message": str(e)})
-            }
+            return build_response(source, 400, {"message": str(e)})
 
         # =========================
-        # Validación CUENTA / ORIGEN
+        # ✅ Validar cuenta / origen
         # =========================
-        cuentas_validas = obtener_origenes_validos(catalogo, dominio)
+        try:
+            cuentas_validas = obtener_origenes_validos(catalogo, dominio)
+        except ValueError as e:
+            return build_response(source, 500, {
+                "message": str(e),
+                "dominio": dominio
+            })
 
         if cuenta not in cuentas_validas:
-            return {
-                "statusCode": 400,
-                "headers": HEADERS,
-                "body": json.dumps({
-                    "message": "Cuenta no permitida para el dominio",
-                    "cuenta": cuenta,
-                    "dominio": dominio,
-                    "permitidas": cuentas_validas
-                })
-            }
+            return build_response(source, 400, {
+                "message": "Cuenta no permitida para el dominio",
+                "cuenta": cuenta,
+                "dominio": dominio,
+                "permitidas": cuentas_validas
+            })
 
         # =========================
-        # Validación CONCEPTO
+        # ✅ Validar concepto
         # =========================
-        if "PROYECCION" in catalogo[dominio]:
-            bloque_validacion = "PROYECCION"
-        else:
-            bloque_validacion = "CAJA_ACTUAL"
+        bloque_validacion = "PROYECCION" if "PROYECCION" in catalogo[dominio] else "CAJA_ACTUAL"
 
-        conceptos_validos = obtener_conceptos_validos(
-            catalogo,
-            dominio,
-            bloque=bloque_validacion
-        )
+        try:
+            conceptos_validos = obtener_conceptos_validos(
+                catalogo,
+                dominio,
+                bloque=bloque_validacion
+            )
+        except ValueError as e:
+            return build_response(source, 500, {
+                "message": str(e),
+                "dominio": dominio
+            })
 
         if concepto not in conceptos_validos:
-            return {
-                "statusCode": 400,
-                "headers": HEADERS,
-                "body": json.dumps({
-                    "message": "Concepto no permitido según el catálogo",
-                    "concepto": concepto,
-                    "dominio": dominio,
-                    "permitidos": conceptos_validos
-                })
-            }
+            return build_response(source, 400, {
+                "message": "Concepto no permitido según el catálogo",
+                "concepto": concepto,
+                "dominio": dominio,
+                "permitidos": conceptos_validos
+            })
 
         # =========================
-        # Construcción del item
+        # 🧱 Construcción item
         # =========================
         item = {
             "trx_id": str(uuid.uuid4()),
             "cuenta": cuenta,
             "descripcion": concepto,
-            "valor": body["Valor"],
-            "fechaMovimiento": body["FechaMovimiento"],
-            "corte": body["Corte"],
+            "valor": valor,
+            "fechaMovimiento": payload["FechaMovimiento"],
+            "corte": payload["Corte"],
             "dominioFinanciero": dominio,
-            "created_at": datetime.utcnow().isoformat()
+            "created_at": datetime.utcnow().isoformat(),
+            "user_id": metadata.get("user_id")
         }
 
         if subconcepto:
             item["subconcepto"] = subconcepto
 
-        table.put_item(Item=item)
+        print("📝 Item a guardar:")
+        print(json.dumps(item, indent=2, default=str))
 
-        return {
-            "statusCode": 200,
-            "headers": HEADERS,
-            "body": json.dumps({
-                "message": "Movimiento de cuenta de alto rendimiento registrado correctamente",
-                "trx_id": item["trx_id"]
-            })
+        # =========================
+        # 💾 Persistencia
+        # =========================
+        table.put_item(Item=item)
+        if source == "eventbridge":
+            publicar_evento("movimiento.cuenta.confirmado", item, source,channel_id=metadata.get("channel_id"))
+
+        # =========================
+        # 📤 Respuesta
+        # =========================
+        response = {
+            "message": "Movimiento de cuenta de alto rendimiento registrado correctamente",
+            "trx_id": item["trx_id"]
         }
 
+        return build_response(source, 200, response)
+
     except Exception as e:
-        print(f"Error: {str(e)}")
+        print("❌ Error:", str(e))
         return {
             "statusCode": 500,
             "headers": HEADERS,

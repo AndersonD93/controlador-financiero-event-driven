@@ -12,6 +12,27 @@ VECTOR_INDEX = os.environ["VECTOR_INDEX"]
 EMBED_MODEL = os.environ["EMBED_MODEL"]
 
 
+def reset_index():
+    try:
+        print("🧹 Eliminando índice existente...")
+        s3vectors.delete_index(
+            vectorBucketName=VECTOR_BUCKET,
+            indexName=VECTOR_INDEX
+        )
+    except Exception as e:
+        print("⚠️ Índice no existía:", str(e))
+
+    print("🆕 Creando índice nuevo...")
+
+    s3vectors.create_index(
+        vectorBucketName=VECTOR_BUCKET,
+        indexName=VECTOR_INDEX,
+        dataType="float32",
+        dimension=1536,
+        distanceMetric="cosine"
+    )
+
+
 def get_embedding(text):
     response = bedrock.invoke_model(
         modelId=EMBED_MODEL,
@@ -49,6 +70,8 @@ def resolve_source(event):
 
 
 def lambda_handler(event, context):
+    
+    reset_index()
 
     print("Evento recibido:", json.dumps(event))
 

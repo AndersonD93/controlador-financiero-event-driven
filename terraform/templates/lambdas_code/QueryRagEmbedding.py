@@ -1,16 +1,53 @@
 import json
 import boto3
 import os
+import urllib.request
 
 bedrock_runtime = boto3.client("bedrock-runtime")
 s3vectors = boto3.client("s3vectors")
+secrets_client = boto3.client("secretsmanager")
 
 VECTOR_BUCKET = os.environ["VECTOR_BUCKET"]
 VECTOR_INDEX = os.environ["VECTOR_INDEX"]
 EMBED_MODEL = os.environ["EMBED_MODEL"]
 LLM_MODEL = os.environ["LLM_MODEL"]
 TOP_K = int(os.environ.get("TOP_K", "5"))
+SLACK_TOKEN_NAME = os.environ["SLACK_BOT_TOKEN"]
 
+
+def respond_to_slack(channel_id, message):
+
+    url = "https://slack.com/api/chat.postMessage"
+
+    token = get_slack_token()
+
+    payload = json.dumps({
+        "channel": channel_id,
+        "text": message
+    }).encode("utf-8")
+
+    req = urllib.request.Request(
+        url,
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json"
+        },
+        method="POST"
+    )
+
+    with urllib.request.urlopen(req) as response:
+        print(response.read().decode())
+
+  
+def get_slack_token():
+    response = secrets_client.get_secret_value(
+        SecretId=SLACK_TOKEN_NAME
+    )
+
+    secret = json.loads(response["SecretString"])
+
+    return secret["SLACK_BOT_TOKEN"]        
 
 # --------------------------------------------------
 # 1️⃣ Generar embedding del prompt
@@ -117,38 +154,40 @@ Pregunta:
 
 def lambda_handler(event, context):
 
-    # Soporta API Gateway HTTP API
-    body = json.loads(event.get("body", "{}"))
-    question = body.get("question")
+    print("==== EVENT ====")
+    print(json.dumps(event, indent=2))
+
+    question = event.get("question")
+    channel_id = event.get("channel_id")
 
     if not question:
-        return {
-            "statusCode": 400,
-            "body": json.dumps({"error": "Missing 'question'"})
-        }
+        print("❌ Missing question")
+        return
 
-    # 1) embedding
+    if not channel_id:
+        print("❌ Missing channel_id")
+        return
+
+    # 1️⃣ embedding
     embedding = get_embedding(question)
 
-    # 2) búsqueda vectorial
+    # 2️⃣ búsqueda vectorial
     vectors = search_similar(embedding)
 
     if not vectors:
-        return {
-            "statusCode": 200,
-            "body": json.dumps({"answer": "No se encontró información relevante."})
-        }
+        answer = "No se encontró información relevante."
+    else:
+        context_text = build_context(vectors)
+        answer = generate_response(question, context_text)
 
-    # 3) contexto
-    context_text = build_context(vectors)
+    print("Respuesta generada:", answer)
 
-    # 4) LLM
-    answer = generate_response(question, context_text)
+    # 🔥 RESPUESTA FINAL A SLACK
+    respond_to_slack(channel_id, answer)
 
     return {
         "statusCode": 200,
         "body": json.dumps({
-            "answer": answer,
-            "matches": vectors
+            "answer": answer
         })
     }

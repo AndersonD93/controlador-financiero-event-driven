@@ -1,44 +1,34 @@
 
-Registrar ingreso
-{
-  "Cuenta": "BDO",
-  "Descripcion": "SALARIO",
-  "Valor": 8500000,
-  "FechaMovimiento": "2026-01-15",
-  "Corte": "2026-01",
-  "DominioFinanciero": "PERSONAL",
-  "Subconcepto": "ENERO"
-}
 
 MovimientosCuentasEInversiones
 {
-  "Cuenta": "Kubo",
-  "Descripcion": "SERVICIOS",
-  "Subconcepto": "Streaming",
-  "Valor": 150000,
-  "FechaMovimiento": "2026-01-05",
-  "Corte": "2026-01",
-  "DominioFinanciero": "Casa"
-}
+        "Cuenta": "EFECTIVO", => "cuenta"
+        "Descripcion": "SALDO_INICIAL", =>"concepto" para dominio inversion mapear "cuenta"
+        "Subconcepto": "SALDO_INICIAL", => "descripcion"
+        "Valor": 100000, => "valor"
+        "FechaMovimiento": "2026-03-15", => "calcular Fecha del sistema"
+        "Corte": "2026-03", => "corte"
+        "DominioFinanciero": "CASA" =>"dominio"
+    }
 MovimientosTarjetas
 {
-  "Franquicia": "TARJETA VISA BDO",
-  "Corte": "2025-01",
-  "Valor": 50000,
-  "FechaMovimiento": "2025-01-15",
-  "DominioFinanciero": "CASA",
-  "Descripcion": "SERVICIOS",
-  "Subconcepto": "PAGO INTERNET ENERO"
-}
+    "Franquicia": "TARJETA MASTERCARD BDO", => "cuenta"
+    "Corte": "2026-03", => "corte"
+    "Valor": 823889, => "valor"
+    "FechaMovimiento": "2026-03-15",=> "calcular Fecha del sistema"
+    "DominioFinanciero": "CASA", =>"dominio"
+    "Descripcion": "SERVICIOS", =>"concepto"
+    "Subconcepto": "SERVICIOS" => "descripcion"
+    }
 
 ParametrizarConceptosAhorro
 {
-  "Corte": "2026-01",
-  "Valor": 100000,
-  "FechaMovimiento": "2026-01-15",
-  "DominioFinanciero": "CASA",
-  "Concepto": "SERVICIO",
-  "Subconcepto": "ELECTRICIDAD"
+  "Corte": "2026-03", => "corte"
+  "Valor": 185000, => "valor"
+  "FechaMovimiento": "2026-03-15",=> "calcular Fecha del sistema"
+  "DominioFinanciero": "CASA",=>"dominio"
+  "Concepto": "ADMINISTRACION",=>"concepto"
+  "Subconcepto": "ADMINISTRACION MARZO"=> "descripcion"
 }
 
 

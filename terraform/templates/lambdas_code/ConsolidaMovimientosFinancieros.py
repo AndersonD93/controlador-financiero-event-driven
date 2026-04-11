@@ -96,14 +96,33 @@ def regla_aplica(regla, contexto):
         print("- Rechazada: bloque no coincide")
         return False
 
-    # -------------------------
-    # Exclusión por concepto (NUEVO)
-    # -------------------------
     concepto = contexto.get("concepto")
+    dominio = contexto.get("dominio")
 
+    # -------------------------
+    # Exclusión por concepto
+    # -------------------------
     if "excluir_conceptos" in regla:
         if concepto in regla["excluir_conceptos"]:
             print(f"- Rechazada: concepto excluido ({concepto})")
+            return False
+
+    # -------------------------
+    # Inclusión por concepto (NUEVO)
+    # Solo aplica si la lista está definida en la regla
+    # -------------------------
+    if "incluir_conceptos" in regla:
+        if concepto not in regla["incluir_conceptos"]:
+            print(f"- Rechazada: concepto no está en incluir_conceptos ({concepto})")
+            return False
+
+    # -------------------------
+    # Exclusión por dominio (NUEVO)
+    # Solo aplica si la lista está definida en la regla
+    # -------------------------
+    if "excluir_dominio" in regla:
+        if dominio in regla["excluir_dominio"]:
+            print(f"- Rechazada: dominio excluido ({dominio})")
             return False
 
     # -------------------------
@@ -144,6 +163,42 @@ def aplicar_operacion(accion, contexto):
         return monto
 
     raise Exception(f"Operación no soportada: {accion['operacion']}")
+
+# ========================
+# Monto seguro (no lleva a negativo)
+# ========================
+
+def calcular_monto_seguro(pk, sk, monto_propuesto):
+    try:
+        response = table.get_item(
+            Key={
+                "Dominio-Corte": pk,
+                "Tipo-Concepto": sk
+            },
+            ProjectionExpression="#v",
+            ExpressionAttributeNames={"#v": "valor"}
+        )
+        item_actual = response.get("Item")
+
+        if not item_actual:
+            print(f"DEBUG MONTO SEGURO → Ítem no existe, decremento bloqueado")
+            return Decimal(0)
+
+        valor_actual = item_actual.get("valor", Decimal(0))
+        print(f"DEBUG MONTO SEGURO → Actual: {valor_actual} | Propuesto: {monto_propuesto}")
+
+        resultado = valor_actual + monto_propuesto
+
+        if resultado < 0:
+            monto_ajustado = monto_propuesto - resultado
+            print(f"DEBUG MONTO SEGURO → Ajustado a: {monto_ajustado} (evita negativo)")
+            return monto_ajustado
+
+        return monto_propuesto
+
+    except ClientError as e:
+        print(f"ERROR MONTO SEGURO: {str(e)}")
+        raise
 
 # ========================
 # Handler principal
@@ -222,14 +277,24 @@ def lambda_handler(event, context):
                     monto = aplicar_operacion(accion, contexto)
 
                     pk = f"{dominio}#{corte}"
-
                     sk = construir_sk(
                         accion["tipo_destino"],
                         concepto,
                         origen
                     )
-                    
+
                     print(f"DEBUG SK GENERADO → PK: {pk} | SK: {sk} | Monto: {monto}")
+
+                    # ------------------------------------------------
+                    # Protección anti-negativo para PROYECCION
+                    # ------------------------------------------------
+                    if accion["bloque_destino"] == "PROYECCION" and monto < 0:
+                        monto = calcular_monto_seguro(pk, sk, monto)
+
+                    if monto == 0:
+                        print(f"CHECKPOINT 9b - Monto ajustado a 0, se omite escritura → {sk}")
+                        continue
+                    # ------------------------------------------------
 
                     print(
                         f"CHECKPOINT 9 - APLICANDO REGLA {regla['id']} "
@@ -267,7 +332,6 @@ def lambda_handler(event, context):
                 print("CHECKPOINT DEFAULT - No aplicó regla, consolidación base")
 
                 pk = f"{dominio}#{corte}"
-
                 sk = construir_sk(
                     tipo,
                     concepto,

@@ -8,6 +8,7 @@
       "requiere_cuenta": true,
       "descripcion": "Toda cuenta con valor negativo debe disminuir el valor del gasto proyectado con excepción del SALDO_INICIAL",
       "excluir_conceptos": ["SALDO_INICIAL"],
+      "excluir_dominio" :["AHORRO","INVERSIONES"],
       "acciones": [
         {
           "tipo_destino": "GASTO",
@@ -48,6 +49,32 @@
         }
     ],
     "activo": true
-    }
+    },
+    {
+    "id": "INGRESO_HOGAR_DISMINUYE_PROYECCION",
+    "tipos_origen": ["CUENTA"],
+    "bloque_origen": "CAJA_ACTUAL",
+    "condicion_valor": "POSITIVO",
+    "requiere_cuenta": true,
+    "descripcion": "Cuando se registra un ingreso del hogar, se disminuye la proyección del mismo concepto",
+    "incluir_conceptos": ["INGRESO HOGAR"],
+    "excluir_dominio" :["INVERSIONES"],
+    "acciones": [
+      {
+        "tipo_destino": "GASTO",
+        "bloque_destino": "PROYECCION",
+        "operacion": "DECREMENTAR",
+        "monto": "VALOR",
+        "match_concepto": true
+      },
+      {
+        "tipo_destino": "CUENTA",
+        "bloque_destino": "CAJA_ACTUAL",
+        "operacion": "INCREMENTAR",
+        "monto": "VALOR"
+      }
+    ],
+    "activo": true
+  }
   ]
 }

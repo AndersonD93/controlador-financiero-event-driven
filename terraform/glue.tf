@@ -36,7 +36,8 @@ resource "aws_iam_role_policy" "glue_policy" {
         Resource = [
           "arn:aws:s3:::${module.s3.bucket_names["reporting"]}",
           "arn:aws:s3:::${module.s3.bucket_names["scripts"]}/*",
-          "arn:aws:s3:::${module.s3.bucket_names["reporting"]}/*"
+          "arn:aws:s3:::${module.s3.bucket_names["reporting"]}/*",
+          "arn:aws:s3:::${module.s3.bucket_names["host"]}/*"
         ]
       },
       {
@@ -82,6 +83,16 @@ resource "aws_s3_object" "glue_export_script" {
   etag = filemd5("${path.module}/templates/glue_code/export_dynamo_to_s3.py")
 
   content_type = "text/x-python"
+}
+
+resource "aws_glue_trigger" "scheduled_export" {
+  name     = "${var.project}-trigger-export"
+  type     = "SCHEDULED"
+  schedule = "cron(0 20 * * ? *)"
+
+  actions {
+    job_name = aws_glue_job.export_dynamo_to_s3.name
+  }
 }
 
 

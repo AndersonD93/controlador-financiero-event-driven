@@ -98,7 +98,9 @@ data "aws_iam_policy_document" "lambda_policy" {
     actions = [
       "s3vectors:PutVectors",
       "s3vectors:QueryVectors",
-      "s3vectors:GetVectors"
+      "s3vectors:GetVectors",
+      "s3vectors:DeleteIndex",
+      "s3vectors:CreateIndex"
     ]
 
     effect = "Allow"
@@ -110,6 +112,39 @@ data "aws_iam_policy_document" "lambda_policy" {
   statement {
     actions = [
       "secretsmanager:GetSecretValue"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "lambda:InvokeFunction"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "events:PutEvents"
+    ]
+
+    effect = "Allow"
+
+    resources = [
+      "*"
+    ]
+  }
+  statement {
+    actions = [
+      "ses:SendEmail"
     ]
 
     effect = "Allow"

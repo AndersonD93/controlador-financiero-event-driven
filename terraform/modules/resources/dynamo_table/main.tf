@@ -13,19 +13,18 @@ resource "aws_dynamodb_table" "dynamo_table" {
     }
   }
 
-  # Lógica condicional para stream_specification
   stream_enabled   = each.value.stream_enabled != null ? each.value.stream_enabled : false
   stream_view_type = each.value.stream_view_type != null ? each.value.stream_view_type : "NEW_AND_OLD_IMAGES"
 
   dynamic "global_secondary_index" {
-    for_each = each.value.global_secondary_index != null ? [each.value.global_secondary_index] : []
+    for_each = each.value.global_secondary_index != null ? each.value.global_secondary_index : []
     content {
       name            = global_secondary_index.value.name
       hash_key        = global_secondary_index.value.hash_key
+      range_key       = lookup(global_secondary_index.value, "range_key", null)
       projection_type = global_secondary_index.value.projection_type
     }
   }
+
   tags = each.value.tags != null ? each.value.tags : {}
 }
-
-

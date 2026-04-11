@@ -10,9 +10,6 @@
       "TARJETA": [
         "TARJETA VISA BDO",
         "TARJETA MASTERCARD BDO"
-      ],
-      "INGRESO": [
-        "INGRESO HOGAR"
       ]
     },
     "PROYECCION": {
@@ -25,7 +22,8 @@
         "HIPOTECARIO",
         "ADMINISTRACION",
         "ESTUDIO",
-        "SALDO_INICIAL"
+        "SALDO_INICIAL",
+        "AHORRO CONTINGENCIA"
       ]
     }
   },
@@ -42,9 +40,6 @@
         "TARJETA VISA BDO",
         "TARJETA MASTERCARD BDO",
         "TARJETA MASTERCARD NU"
-      ],
-      "INGRESO": [
-        "INGRESO SALARIO"
       ]
     },
     "PROYECCION": {
@@ -54,7 +49,8 @@
         "SALDO_INICIAL",
         "INGRESO SALARIO",
         "APORTE HOGAR",
-        "DEUDA A CASA"
+        "DEUDA A CASA",
+        "GASTOS HORMIGA"
       ]
     }
   },
@@ -72,7 +68,12 @@
       "CONCEPTOS": [
         "AHORRO PROYECTO FINCA",
         "AHORRO CONTINGENCIA",
-        "SALDO_INICIAL"
+        "SALDO_INICIAL",
+        "AUTOMOVIL",
+        "AHORRO LEANDRO",
+        "AHORRO JOHAO",
+        "AHORRO JENNY",
+        "SALDO APTO"
       ]
     }
   },
@@ -89,6 +90,11 @@
       "MONEDAS": [
         "MON_BITCOIN",
         "MON_USD"
+      ],
+      "CUENTAS": [
+        "KUBO",
+        "NU",
+        "RAPPI"
       ]
     }
   }

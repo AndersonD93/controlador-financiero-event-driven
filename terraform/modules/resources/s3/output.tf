@@ -21,3 +21,9 @@ output "bucket_arns" {
     k => b.arn
   }
 }
+
+output "bucket_regional_domain_names" {
+  value = {
+    for k, v in aws_s3_bucket.this : k => v.bucket_regional_domain_name
+  }
+}

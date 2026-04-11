@@ -100,7 +100,7 @@ module "api_resource_QueryRagEmbedding" {
       authorization    = "COGNITO_USER_POOLS"
       authorizer_id    = aws_api_gateway_authorizer.cognito_authorizer_module.id
       type_integration = "AWS_PROXY"
-      uri              = module.lambdas_backend_api.invoke_arn["QueryRagEmbedding"]
+      uri              = module.lambdas_QueryRagEmbedding.invoke_arn["QueryRagEmbedding"]
       response_models  = { "application/json" = "Empty" }
       stage_name       = "prd"
       url_cors_allow   = "'${module.s3.s3_bucket_website_urls["host"]}'"

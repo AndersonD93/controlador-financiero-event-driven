@@ -109,3 +109,48 @@ def obtener_cuentas_validas(catalogo, dominio, bloque="CAJA_ACTUAL", tipo=None):
             cuentas.extend(value)
 
     return cuentas
+
+def normalizar_evento(event):
+
+    # =========================
+    # EventBridge
+    # =========================
+    if "detail" in event:
+        detail = event.get("detail") or {}
+        payload = detail.get("payload") or {}
+        metadata = detail.get("metadata") or {}
+
+        return payload, metadata, "eventbridge"
+
+    # =========================
+    # API Gateway
+    # =========================
+    if "body" in event:
+
+        body = event.get("body")
+
+        print("🧪 BODY RAW:", body)
+
+        if isinstance(body, str):
+            try:
+                body = json.loads(body)
+            except Exception as e:
+                print("❌ Error parseando body:", str(e))
+                body = {}
+
+        print("🧪 BODY PARSEADO:", body)
+
+        # ✅ Extraer user_id desde el contexto del autorizador Cognito
+        request_context = event.get("requestContext") or {}
+        authorizer = request_context.get("authorizer") or {}
+        claims = authorizer.get("claims") or {}
+        user_id = claims.get("cognito:username") or claims.get("sub")
+
+        metadata = {"user_id": user_id}
+
+        print("🧾 Metadata extraída:", metadata)
+
+        return body or {}, metadata, "apigateway"
+
+    # =========================
+    return event or {}, {}, "unknown"

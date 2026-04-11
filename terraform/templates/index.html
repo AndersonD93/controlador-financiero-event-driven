@@ -1,36 +1,599 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Login - Sports Admin</title>
-    <link rel="stylesheet" href="css/styles.css">
-    <link rel="icon" href="data:,">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>Controlador Financiero</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Mono:wght@300;400;500&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<style>
+:root {
+  --bg:        #0d0f0e;
+  --surface:   #141714;
+  --surface2:  #1a1e1a;
+  --border:    rgba(255,255,255,0.07);
+  --border2:   rgba(255,255,255,0.13);
+  --text:      #e8ebe8;
+  --muted:     #6b7368;
+  --accent:    #a8e063;
+  --accent2:   #5fc9a0;
+  --red:       #e06363;
+  --amber:     #e0b863;
+  --mono:      'DM Mono', monospace;
+  --sans:      'DM Sans', sans-serif;
+  --radius:    10px;
+}
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+html { scroll-behavior: smooth; }
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  font-size: 14px;
+  line-height: 1.6;
+  min-height: 100vh;
+}
+
+/* ── HEADER ── */
+.header {
+  border-bottom: 1px solid var(--border);
+  padding: 20px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  position: sticky;
+  top: 0;
+  background: rgba(13,15,14,0.92);
+  backdrop-filter: blur(12px);
+  z-index: 100;
+}
+.header-brand { display: flex; align-items: center; gap: 10px; }
+.header-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--accent); animation: pulse 2.5s infinite; }
+@keyframes pulse { 0%,100%{opacity:1;transform:scale(1)} 50%{opacity:.4;transform:scale(0.7)} }
+.header-title { font-family: var(--mono); font-size: 13px; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase; color: var(--text); }
+.header-meta { font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.header-right { display: flex; align-items: center; gap: 8px; }
+#statusBadge {
+  font-family: var(--mono); font-size: 11px; padding: 4px 10px;
+  border-radius: 20px; border: 1px solid var(--border2);
+  color: var(--muted); background: var(--surface);
+}
+#reloadBtn {
+  font-family: var(--mono); font-size: 11px; padding: 4px 12px;
+  border-radius: 20px; border: 1px solid var(--border2);
+  background: transparent; color: var(--accent); cursor: pointer;
+  transition: background .15s, color .15s;
+}
+#reloadBtn:hover { background: var(--accent); color: var(--bg); }
+
+/* ── MAIN ── */
+.main { padding: 28px 32px; max-width: 1280px; margin: 0 auto; }
+
+/* ── LOADING / ERROR ── */
+#loadingState, #errorState { text-align: center; padding: 80px 0; }
+#loadingState { display: flex; flex-direction: column; align-items: center; gap: 16px; }
+.spinner { width: 32px; height: 32px; border: 2px solid var(--border2); border-top-color: var(--accent); border-radius: 50%; animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+#errorState { display: none; color: var(--red); font-family: var(--mono); font-size: 13px; }
+#dashboard { display: none; }
+
+/* ── FILTERS ── */
+.filters {
+  display: flex; gap: 12px; flex-wrap: wrap;
+  margin-bottom: 24px; align-items: center;
+}
+.filter-label { font-family: var(--mono); font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.06em; }
+select {
+  font-family: var(--mono); font-size: 12px;
+  background: var(--surface2); color: var(--text);
+  border: 1px solid var(--border2); border-radius: 6px;
+  padding: 6px 10px; cursor: pointer; outline: none;
+  transition: border-color .15s;
+}
+select:focus, select:hover { border-color: var(--accent); }
+
+/* ── METRICS ROW ── */
+.metrics {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 12px; margin-bottom: 24px;
+}
+.metric {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 16px 18px;
+  transition: border-color .15s;
+}
+.metric:hover { border-color: var(--border2); }
+.metric-label { font-family: var(--mono); font-size: 10px; color: var(--muted); text-transform: uppercase; letter-spacing: 0.08em; margin-bottom: 8px; }
+.metric-value { font-family: var(--mono); font-size: 20px; font-weight: 500; }
+.metric-value.pos { color: var(--accent2); }
+.metric-value.neg { color: var(--red); }
+.metric-value.neutral { color: var(--text); }
+
+/* ── CHARTS GRID ── */
+.charts-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16px; margin-bottom: 16px;
+}
+.chart-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 20px;
+  transition: border-color .15s;
+}
+.chart-card:hover { border-color: var(--border2); }
+.chart-card.full { grid-column: 1 / -1; }
+.chart-title {
+  font-family: var(--mono); font-size: 11px; font-weight: 500;
+  color: var(--muted); text-transform: uppercase; letter-spacing: 0.07em;
+  margin-bottom: 14px;
+}
+.legend { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 12px; }
+.legend-item { display: flex; align-items: center; gap: 6px; font-family: var(--mono); font-size: 11px; color: var(--muted); }
+.legend-sq { width: 8px; height: 8px; border-radius: 2px; }
+
+/* ── TABLA ── */
+.table-wrap { overflow-x: auto; }
+table { width: 100%; border-collapse: collapse; }
+thead th {
+  font-family: var(--mono); font-size: 10px; text-transform: uppercase;
+  letter-spacing: 0.07em; color: var(--muted); text-align: left;
+  padding: 8px 12px; border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+thead th.right { text-align: right; }
+tbody tr { border-bottom: 1px solid var(--border); transition: background .1s; }
+tbody tr:last-child { border-bottom: none; }
+tbody tr:hover { background: var(--surface2); }
+tbody td { padding: 8px 12px; font-size: 13px; }
+tbody td.mono { font-family: var(--mono); font-size: 12px; }
+tbody td.right { text-align: right; font-family: var(--mono); font-size: 12px; }
+tbody td.pos { color: var(--accent2); font-weight: 500; }
+tbody td.neg { color: var(--red); font-weight: 500; }
+.tag {
+  display: inline-block; font-family: var(--mono); font-size: 10px;
+  padding: 2px 8px; border-radius: 4px; letter-spacing: 0.04em; font-weight: 500;
+}
+.tag-CASA       { background: rgba(168,224,99,0.12);  color: #a8e063; border: 1px solid rgba(168,224,99,0.25); }
+.tag-PERSONAL   { background: rgba(95,201,160,0.12);  color: #5fc9a0; border: 1px solid rgba(95,201,160,0.25); }
+.tag-INVERSIONES{ background: rgba(224,184,99,0.12);  color: #e0b863; border: 1px solid rgba(224,184,99,0.25); }
+.tag-AHORRO     { background: rgba(99,180,224,0.12);  color: #63b4e0; border: 1px solid rgba(99,180,224,0.25); }
+
+.sec-label { font-size: 11px; color: var(--muted); font-family: var(--mono); }
+
+/* ── RESPONSIVE ── */
+@media (max-width: 700px) {
+  .header { padding: 14px 16px; }
+  .main { padding: 16px; }
+  .charts-grid { grid-template-columns: 1fr; }
+  .chart-card.full { grid-column: 1; }
+  .header-meta { display: none; }
+}
+
+/* ── DIVIDER ── */
+.section-sep { height: 1px; background: var(--border); margin: 24px 0; }
+</style>
 </head>
 <body>
-    <div class="login-container" id="login-container">
-        <h2>Login</h2>
-        <input type="text" id="username" placeholder="Username" required>
-        <input type="password" id="password" placeholder="Password" required>
-        <button id="login-button">Login</button>
+
+<header class="header">
+  <div class="header-brand">
+    <div class="header-dot"></div>
+    <span class="header-title">Controlador Financiero</span>
+  </div>
+  <span class="header-meta" id="headerMeta">—</span>
+  <div class="header-right">
+    <span id="statusBadge">cargando...</span>
+    <button id="reloadBtn" onclick="loadData()">↻ actualizar</button>
+  </div>
+</header>
+
+<main class="main">
+
+  <div id="loadingState">
+    <div class="spinner"></div>
+    <span style="font-family:var(--mono);font-size:12px;color:var(--muted)">cargando reporte...</span>
+  </div>
+
+  <div id="errorState">
+    <p id="errorMsg"></p>
+    <p style="margin-top:8px;color:var(--muted);font-size:12px">Verifica que el archivo CSV y la política CORS del bucket estén configurados correctamente.</p>
+  </div>
+
+  <div id="dashboard">
+
+    <div class="filters">
+      <span class="filter-label">dominio</span>
+      <select id="fDominio"><option value="ALL">Todos</option></select>
+      <span class="filter-label">corte</span>
+      <select id="fCorte"><option value="ALL">Todos</option></select>
+      <span class="filter-label">sección</span>
+      <select id="fSeccion"><option value="ALL">Todas</option></select>
     </div>
 
-    <div class="after-login-container hidden" id="after-login-container">
-        <h2>Bienvenido Usuario <span id="user-group"></span></h2>
-        <p>¿Qué te gustaría hacer?</p>
-        <div id="admin-options" class="hidden">
-            <button onclick="window.location.href='html/admin.html'">Crear Partidos</button>
-            <button onclick="window.location.href='html/results.html'">Actualizar Resultados</button>
-            <button onclick="window.location.href='html/matches.html'">Cargar Partidos Por Competición</button>
-        </div>
-        <div id="general-options" class="hidden">
-            <button onclick="window.location.href='html/score.html'">Ver Puntajes</button>
-            <button onclick="window.location.href='html/bets.html'">Realizar Apuestas</button>
-        </div>
+    <div class="metrics" id="metricsRow"></div>
+
+    <div class="charts-grid">
+      <div class="chart-card full">
+        <div class="chart-title">evolución — caja proyectada por corte</div>
+        <div class="legend" id="legendEv"></div>
+        <div style="position:relative;width:100%;height:240px;"><canvas id="chartEv"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">comparativo dominios — caja proyectada</div>
+        <div style="position:relative;width:100%;height:220px;"><canvas id="chartComp"></canvas></div>
+      </div>
+      <div class="chart-card">
+        <div class="chart-title">desglose proyección — top conceptos</div>
+        <div style="position:relative;width:100%;height:220px;"><canvas id="chartConc"></canvas></div>
+      </div>
     </div>
 
-    <script src="https://sdk.amazonaws.com/js/aws-sdk-2.953.0.min.js"></script>
-    <script src="https://cdn.jsdelivr.net/npm/amazon-cognito-identity-js@5.1.0/dist/amazon-cognito-identity.min.js"></script>
-    <script type="module" src="js/login.js"></script>
+    <div class="section-sep"></div>
+
+    <div class="chart-card full" style="margin-bottom:0">
+      <div class="chart-title">detalle de registros</div>
+      <div class="table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th>dominio</th>
+              <th>corte</th>
+              <th>sección</th>
+              <th>concepto</th>
+              <th class="right">valor (M COP)</th>
+            </tr>
+          </thead>
+          <tbody id="tablaBody"></tbody>
+        </table>
+      </div>
+    </div>
+
+  </div>
+</main>
+
+<script>
+// ─────────────────────────────────────────────────────────────
+// CONFIGURACIÓN — ajusta esta URL al path real de tu bucket
+// ─────────────────────────────────────────────────────────────
+const CSV_URL = "./reporte_flujo_caja.csv";
+// ─────────────────────────────────────────────────────────────
+
+const DOMAIN_COLORS = {
+  CASA:        "#a8e063",
+  PERSONAL:    "#5fc9a0",
+  INVERSIONES: "#e0b863",
+  AHORRO:      "#63b4e0",
+};
+
+let ALL_DATA = [];
+let chartEv, chartComp, chartConc;
+
+// ── CSV parser ───────────────────────────────────────────────
+function parseCSV(text) {
+  const lines = text.trim().split("\n");
+  const headers = lines[0].split(",");
+  return lines.slice(1).map(line => {
+    const cols = [];
+    let cur = "", inQ = false;
+    for (let i = 0; i < line.length; i++) {
+      const ch = line[i];
+      if (ch === '"') { inQ = !inQ; continue; }
+      if (ch === ',' && !inQ) { cols.push(cur); cur = ""; continue; }
+      cur += ch;
+    }
+    cols.push(cur);
+    const obj = {};
+    headers.forEach((h, i) => obj[h.trim()] = (cols[i] || "").trim());
+    obj.valor_ajustado = parseFloat(obj.valor_ajustado) || 0;
+    return obj;
+  }).filter(r => r.dominio);
+}
+
+// ── Formato millones ─────────────────────────────────────────
+function fmtM(v, decimals = 2) {
+  const m = v / 1000000;
+  const sign = m < 0 ? "-" : "";
+  return sign + "$" + Math.abs(m).toFixed(decimals) + "M";
+}
+
+// ── Cargar datos ─────────────────────────────────────────────
+async function loadData() {
+  document.getElementById("loadingState").style.display = "flex";
+  document.getElementById("errorState").style.display   = "none";
+  document.getElementById("dashboard").style.display    = "none";
+  document.getElementById("statusBadge").textContent    = "cargando...";
+
+  try {
+    const res = await fetch(CSV_URL + "?t=" + Date.now());
+    if (!res.ok) throw new Error(`HTTP ${res.status} — ${res.statusText}`);
+    const text = await res.text();
+    ALL_DATA = parseCSV(text);
+    if (!ALL_DATA.length) throw new Error("El archivo CSV está vacío o no tiene el formato esperado.");
+
+    poblarFiltros();
+    update();
+
+    const now = new Date().toLocaleString("es-CO", { timeZone: "America/Bogota" });
+    document.getElementById("headerMeta").textContent = "última carga: " + now;
+    document.getElementById("statusBadge").textContent = ALL_DATA.length + " registros";
+    document.getElementById("statusBadge").style.color = "var(--accent2)";
+    document.getElementById("loadingState").style.display = "none";
+    document.getElementById("dashboard").style.display    = "block";
+  } catch(e) {
+    document.getElementById("loadingState").style.display = "none";
+    document.getElementById("errorState").style.display   = "block";
+    document.getElementById("errorMsg").textContent = "Error al cargar: " + e.message;
+    document.getElementById("statusBadge").textContent = "error";
+    document.getElementById("statusBadge").style.color = "var(--red)";
+  }
+}
+
+// ── Poblar selects ────────────────────────────────────────────
+function poblarFiltros() {
+  const dominios  = [...new Set(ALL_DATA.map(r => r.dominio))].sort();
+  const cortes    = [...new Set(ALL_DATA.map(r => r.corte))].sort();
+  const secciones = [...new Set(ALL_DATA.map(r => r.seccion))].sort();
+
+  const fill = (id, vals) => {
+    const sel = document.getElementById(id);
+    const prev = sel.value;
+    sel.innerHTML = '<option value="ALL">Todos</option>';
+    vals.forEach(v => {
+      const o = document.createElement("option");
+      o.value = v; o.textContent = v;
+      sel.appendChild(o);
+    });
+    if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  };
+  fill("fDominio",  dominios);
+  fill("fCorte",    cortes);
+  fill("fSeccion",  secciones);
+}
+
+// ── Filtrar ────────────────────────────────────────────────────
+function getFiltered() {
+  const d = document.getElementById("fDominio").value;
+  const c = document.getElementById("fCorte").value;
+  const s = document.getElementById("fSeccion").value;
+  return ALL_DATA.filter(r =>
+    (d === "ALL" || r.dominio  === d) &&
+    (c === "ALL" || r.corte    === c) &&
+    (s === "ALL" || r.seccion  === s)
+  );
+}
+
+// ── Helpers de datos ──────────────────────────────────────────
+
+// ✅ FIX: busca la sección con el corte embebido en el nombre
+function getCajaProyectada(data, dominio, corte) {
+  const row = data.find(r =>
+    r.dominio === dominio &&
+    r.corte   === corte   &&
+    r.seccion === `CAJA_PROYECTADA_A_CORTE_${corte}`
+  );
+  return row ? row.valor_ajustado : null;
+}
+
+function getCortesUnicos(data) {
+  return [...new Set(data.map(r => r.corte))].sort();
+}
+
+function getDominiosUnicos(data) {
+  return [...new Set(data.map(r => r.dominio))].sort();
+}
+
+// ── Métricas ──────────────────────────────────────────────────
+
+// ✅ FIX: toma solo el corte seleccionado o el más reciente, nunca suma todos
+function renderMetrics(data) {
+
+  // Determina el corte activo: el seleccionado en el filtro o el último disponible
+  const corteSeleccionado = document.getElementById("fCorte").value;
+  const cortesDisponibles = getCortesUnicos(data);
+  const corteActivo = corteSeleccionado !== "ALL"
+    ? corteSeleccionado
+    : cortesDisponibles.at(-1);
+
+  // Caja proyectada: solo filas del corte activo con la sección correspondiente
+  const proyRows = data.filter(r =>
+    r.corte   === corteActivo &&
+    r.seccion === `CAJA_PROYECTADA_A_CORTE_${corteActivo}`
+  );
+  const totalProy = proyRows.reduce((a, r) => a + r.valor_ajustado, 0);
+
+  const ingRows = data.filter(r =>
+    r.valor_ajustado > 0 &&
+    !r.seccion.startsWith("TOTAL") &&
+    !r.seccion.startsWith("CAJA_PROYECTADA")
+  );
+  const egrRows = data.filter(r =>
+    r.valor_ajustado < 0 &&
+    !r.seccion.startsWith("TOTAL") &&
+    !r.seccion.startsWith("CAJA_PROYECTADA")
+  );
+  const totalIng = ingRows.reduce((a, r) => a + r.valor_ajustado, 0);
+  const totalEgr = egrRows.reduce((a, r) => a + r.valor_ajustado, 0);
+
+  const inv = data.filter(r => r.dominio === "INVERSIONES" && r.seccion === "TOTAL_CAJA_ACTUAL");
+  const totalInv = inv.reduce((a, r) => a + r.valor_ajustado, 0);
+
+  // Etiqueta dinámica que muestra qué corte se está usando
+  const labelCorte = corteActivo ? ` (${corteActivo})` : "";
+
+  document.getElementById("metricsRow").innerHTML = `
+    <div class="metric">
+      <div class="metric-label">caja proyectada${labelCorte}</div>
+      <div class="metric-value ${totalProy >= 0 ? 'pos' : 'neg'}">${fmtM(totalProy)}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">total ingresos</div>
+      <div class="metric-value pos">${fmtM(totalIng)}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">total egresos</div>
+      <div class="metric-value neg">${fmtM(totalEgr)}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">portafolio inversiones</div>
+      <div class="metric-value neutral">${totalInv ? fmtM(totalInv) : '—'}</div>
+    </div>
+    <div class="metric">
+      <div class="metric-label">registros visibles</div>
+      <div class="metric-value neutral">${data.length}</div>
+    </div>
+  `;
+}
+
+// ── Gráfica evolución ─────────────────────────────────────────
+function renderEvolucion(data) {
+  const cortes   = getCortesUnicos(ALL_DATA);
+  const dominios = getDominiosUnicos(ALL_DATA).filter(d => d !== "INVERSIONES");
+
+  const legendEl = document.getElementById("legendEv");
+  legendEl.innerHTML = dominios.map(d =>
+    `<span class="legend-item"><span class="legend-sq" style="background:${DOMAIN_COLORS[d]||'#888'}"></span>${d}</span>`
+  ).join("");
+
+  const datasets = dominios.map(d => ({
+    label: d,
+    data: cortes.map(c => {
+      const v = getCajaProyectada(ALL_DATA, d, c);
+      return v !== null ? parseFloat((v / 1000000).toFixed(3)) : null;
+    }),
+    borderColor: DOMAIN_COLORS[d] || "#888",
+    backgroundColor: (DOMAIN_COLORS[d] || "#888") + "18",
+    tension: 0.35,
+    pointRadius: 5,
+    pointBackgroundColor: DOMAIN_COLORS[d] || "#888",
+    borderWidth: 2,
+    spanGaps: true,
+  }));
+
+  const ctx = document.getElementById("chartEv");
+  if (chartEv) chartEv.destroy();
+  chartEv = new Chart(ctx, {
+    type: "line",
+    data: { labels: cortes, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7368", font: { family: "DM Mono", size: 11 }, autoSkip: false }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { callback: v => fmtM(v * 1000000, 1), color: "#6b7368", font: { family: "DM Mono", size: 10 } }, grid: { color: "rgba(255,255,255,0.05)" } }
+      }
+    }
+  });
+}
+
+// ── Gráfica comparativo ────────────────────────────────────────
+function renderComparativo(data) {
+  const cortes   = getCortesUnicos(data);
+  const dominios = getDominiosUnicos(data).filter(d => d !== "INVERSIONES");
+
+  const datasets = dominios.map(d => ({
+    label: d,
+    data: cortes.map(c => {
+      const v = getCajaProyectada(ALL_DATA, d, c);
+      return v !== null ? parseFloat((v / 1000000).toFixed(3)) : 0;
+    }),
+    backgroundColor: (DOMAIN_COLORS[d] || "#888") + "bb",
+    borderRadius: 4,
+    borderSkipped: false,
+  }));
+
+  const ctx = document.getElementById("chartComp");
+  if (chartComp) chartComp.destroy();
+  chartComp = new Chart(ctx, {
+    type: "bar",
+    data: { labels: cortes, datasets },
+    options: {
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { color: "#6b7368", font: { family: "DM Mono", size: 11 }, autoSkip: false }, grid: { display: false } },
+        y: { ticks: { callback: v => fmtM(v * 1000000, 1), color: "#6b7368", font: { family: "DM Mono", size: 10 } }, grid: { color: "rgba(255,255,255,0.05)" } }
+      }
+    }
+  });
+}
+
+// ── Gráfica conceptos ─────────────────────────────────────────
+function renderConceptos(data) {
+  const proyRows = data.filter(r => r.seccion === "PROYECCION" && r.concepto !== "");
+  const map = {};
+  proyRows.forEach(r => { map[r.concepto] = (map[r.concepto] || 0) + r.valor_ajustado; });
+
+  const sorted = Object.entries(map)
+    .sort((a, b) => Math.abs(b[1]) - Math.abs(a[1]))
+    .slice(0, 9);
+
+  const labels = sorted.map(e => e[0]);
+  const vals   = sorted.map(e => parseFloat((e[1] / 1000000).toFixed(3)));
+  const colors = vals.map(v => v >= 0 ? "#5fc9a0bb" : "#e06363bb");
+
+  const wrapH  = Math.max(220, labels.length * 34 + 60);
+  document.getElementById("chartConc").parentElement.style.height = wrapH + "px";
+
+  const ctx = document.getElementById("chartConc");
+  if (chartConc) chartConc.destroy();
+  chartConc = new Chart(ctx, {
+    type: "bar",
+    data: {
+      labels,
+      datasets: [{ data: vals, backgroundColor: colors, borderRadius: 4, borderSkipped: false }]
+    },
+    options: {
+      indexAxis: "y",
+      responsive: true, maintainAspectRatio: false,
+      plugins: { legend: { display: false } },
+      scales: {
+        x: { ticks: { callback: v => fmtM(v * 1000000, 1), color: "#6b7368", font: { family: "DM Mono", size: 10 } }, grid: { color: "rgba(255,255,255,0.05)" } },
+        y: { ticks: { color: "#6b7368", font: { family: "DM Mono", size: 10 } }, grid: { display: false } }
+      }
+    }
+  });
+}
+
+// ── Tabla ─────────────────────────────────────────────────────
+function renderTabla(data) {
+  const tbody = document.getElementById("tablaBody");
+  tbody.innerHTML = data.map(r => {
+    const mval = r.valor_ajustado / 1000000;
+    const sign = mval < 0 ? "-" : "";
+    const display = sign + "$" + Math.abs(mval).toFixed(3) + "M";
+    const cls = mval >= 0 ? "pos" : "neg";
+    const tagCls = "tag-" + r.dominio;
+    return `<tr>
+      <td><span class="tag ${tagCls}">${r.dominio}</span></td>
+      <td class="mono">${r.corte}</td>
+      <td class="sec-label">${r.seccion}</td>
+      <td>${r.concepto || "—"}</td>
+      <td class="right ${cls}">${display}</td>
+    </tr>`;
+  }).join("");
+}
+
+// ── Update principal ──────────────────────────────────────────
+function update() {
+  const filtered = getFiltered();
+  renderMetrics(filtered);
+  renderEvolucion(filtered);
+  renderComparativo(filtered);
+  renderConceptos(filtered);
+  renderTabla(filtered);
+}
+
+// ── Event listeners ───────────────────────────────────────────
+["fDominio", "fCorte", "fSeccion"].forEach(id => {
+  document.getElementById(id).addEventListener("change", update);
+});
+
+loadData();
+</script>
 </body>
 </html>

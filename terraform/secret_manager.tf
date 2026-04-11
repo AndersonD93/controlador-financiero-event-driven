@@ -5,6 +5,13 @@ resource "aws_secretsmanager_secret" "slack_webhook_secret" {
   recovery_window_in_days = 7
 }
 
+resource "aws_secretsmanager_secret" "slack_bot_token" {
+  name        = "slack/webhook/slackbottoken"
+  description = "permite hacer llamadas a Slack API (views.open, chat.postMessage, etc.)"
+
+  recovery_window_in_days = 7
+}
+
 /*
 data "aws_secretsmanager_secret" "secret_public_api" {
   name = "project/footbal-data"

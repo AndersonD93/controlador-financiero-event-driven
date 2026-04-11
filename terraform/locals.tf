@@ -4,7 +4,7 @@ locals {
     host = {
       name          = "${var.project}-host"
       website       = true
-      public_access = true
+      public_access = false
     }
 
     reporting = {
@@ -22,10 +22,6 @@ locals {
   }
 }
 
-locals {
-  intents_template = "${path.root}/templates/reglas/intenciones.json.tpl"
-  intents_hash = md5(file(local.intents_template))
-}
 
 /*
   dynamo_tables_list_name = {

@@ -154,22 +154,81 @@ resource "aws_cloudwatch_event_target" "lambda_target_proyecciones_fijas" {
   arn       = module.lambdas_backend_api.lambda_arns["ProyeccionesFijas"]
 }
 
-resource "aws_cloudwatch_event_rule" "semantic_router_update" {
 
-  name = "semantic-router-update"
+resource "aws_cloudwatch_event_bus" "bus_financiero" {
+  name = "bus-financiero"
+}
+
+resource "aws_cloudwatch_event_rule" "movimiento_general" {
+  name           = "rule-movimiento-general"
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
 
   event_pattern = jsonencode({
-    source = ["aws.ssm"]
-    "detail-type" = ["Parameter Store Change"]
-    detail = {
-      name = ["/ai-router/intents"]
-      operation = ["Create","Update"]
-    }
+    "source": ["app.financiero"],
+    "detail-type": ["movimiento.general.registrado"]
   })
 }
 
-resource "aws_cloudwatch_event_target" "invoke_update_embeddings" {
+resource "aws_cloudwatch_event_target" "target_movimiento_general" {
+  rule           = aws_cloudwatch_event_rule.movimiento_general.name
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+  target_id      = "lambda-movimiento-general"
+  arn            = module.lambdas_backend_api.lambda_arns["MovimientosCuentasEInversiones"]
+}
 
-  rule = aws_cloudwatch_event_rule.semantic_router_update.name
-  arn  =  module.lambdas_backend_api.lambda_arns["ActualizaEmbeddings"]
+resource "aws_cloudwatch_event_rule" "movimiento_tarjeta" {
+  name           = "rule-movimiento-tarjeta"
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+
+  event_pattern = jsonencode({
+    "source": ["app.financiero"],
+    "detail-type": ["movimiento.tarjeta.registrado"]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "target_movimiento_tarjeta" {
+  rule           = aws_cloudwatch_event_rule.movimiento_tarjeta.name
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+  target_id      = "lambda-movimiento-tarjeta"
+  arn            = module.lambdas_backend_api.lambda_arns["MovimientosTarjetas"]
+}
+
+resource "aws_cloudwatch_event_rule" "movimiento_proyeccion" {
+  name           = "rule-movimiento-proyeccion"
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+
+  event_pattern = jsonencode({
+    "source": ["app.financiero"],
+    "detail-type": ["proyeccion.registrado"]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "target_movimiento_proyeccion" {
+  rule           = aws_cloudwatch_event_rule.movimiento_proyeccion.name
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+  target_id      = "lambda-movimiento-proyeccion"
+  arn            = module.lambdas_backend_api.lambda_arns["ParametrizarConceptosAhorro"]
+}
+
+
+resource "aws_cloudwatch_event_rule" "notificacion_slack" {
+  name           = "notificacion-slack-ingesta"
+  description    = "Dispara la lambda de Slack ante eventos de ingesta financiera"
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+
+  event_pattern = jsonencode({
+    source      = ["app.financiero"]
+    "detail-type" = [
+      "movimiento.tarjeta.confirmado",
+      "movimiento.cuenta.confirmado",
+      "concepto.fijo.confirmado"
+    ]
+  })
+}
+
+resource "aws_cloudwatch_event_target" "slack_target" {
+  rule           = aws_cloudwatch_event_rule.notificacion_slack.name
+  event_bus_name = aws_cloudwatch_event_bus.bus_financiero.name
+  target_id      = "lambda-notificador-slack"
+  arn            = module.lambdas_backend_api.lambda_arns["NotificadorSlack"]
 }

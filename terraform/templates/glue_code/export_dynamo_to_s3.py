@@ -190,7 +190,7 @@ csv_file = [o["Key"] for o in objects["Contents"] if o["Key"].endswith(".csv")][
 
 base_prefix = "/".join(tmp_path.replace("s3://", "").split("/")[1:])
 
-final_key = f"{base_prefix}/reporte_flujo_caja_{fecha}.csv"
+final_key = f"{base_prefix}/reporte_flujo_caja.csv"
 
 s3.copy_object(
     Bucket=bucket,
@@ -201,6 +201,25 @@ s3.copy_object(
 s3.delete_object(Bucket=bucket, Key=csv_file)
 
 print(f"CSV generado: s3://{bucket}/{final_key}")
+
+# ============================================================
+# =============== SALIDA 2: PUBLICAR EN HOST =================
+# ============================================================
+
+host_bucket = "control-financiero-host"
+host_key = "reporte_flujo_caja.csv"
+
+s3.copy_object(
+    Bucket=host_bucket,
+    CopySource={
+        "Bucket": bucket,
+        "Key": final_key
+    },
+    Key=host_key,
+    ContentType="text/csv"
+)
+
+print(f"CSV publicado en host: s3://{host_bucket}/{host_key}")
 
 # ============================================================
 # ================= SALIDA 2: JSONL PARA RAG ==================
