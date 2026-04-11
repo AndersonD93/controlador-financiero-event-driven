@@ -1,150 +1,197 @@
+# Control Financiero Personal — Serverless AWS
 
-# Aplicación Serverless con AWS y Terraform
-
-¡Bienvenido a este proyecto serverless! Este repositorio contiene una aplicación de apuestas deportivas nativa de la nube construida utilizando servicios de AWS e Infraestructura como Código (IaC) con Terraform. El objetivo de este proyecto es demostrar una arquitectura serverless e invitar a la comunidad a contribuir con ideas y mejoras.
-
-## Tabla de Contenidos
-
-1. [Descripción General](#descripción-general)
-2. [Arquitectura](#arquitectura)
-3. [Requisitos Previos](#requisitos-previos)
-4. [Instrucciones de Configuración](#instrucciones-de-configuración)
-5. [Pruebas de la Aplicación](#pruebas-de-la-aplicación)
-6. [Contribuciones](#contribuciones)
+Sistema de control financiero personal basado en eventos, desplegado completamente en AWS con Terraform. Permite registrar, consolidar y proyectar movimientos financieros (cuentas, tarjetas, inversiones y ahorros) con reglas de compensación automáticas. La interfaz principal es **Slack**, con un asistente IA integrado para consultas en lenguaje natural.
 
 ---
-
-## Descripción General
-
-Este proyecto demuestra una arquitectura serverless utilizando los servicios de AWS, incluyendo:
-
-- **AWS Lambda**: Lógica del backend.
-- **API Gateway**: Gestión de API.
-- **DynamoDB**: Almacenamiento de datos.
-- **S3**: Hosting de archivos estáticos.
-- **Cognito**: Servicio para autenticación y autorización de usuarios.
-- **CloudFront**: Red de distribución de contenido (CDN). (Proximo mvp)
-
-Está diseñado para ser implementado fácilmente utilizando Terraform, lo que permite un aprovisionamiento consistente de la infraestructura.
 
 ## Arquitectura
 
-![Diagrama de Arquitectura](image.png)
+![Arquitectura del sistema](image.png)
 
-La aplicación consiste en un frontend alojado en S3/CloudFront y un backend con API Gateway y Lambda, interactuando con DynamoDB para la persistencia de datos.
-
-## Requisitos Previos
-
-Antes de desplegar el proyecto, asegúrate de tener lo siguiente:
-
-- [Terraform](https://www.terraform.io/downloads.html) instalado.
-- AWS CLI instalado y configurado con los permisos adecuados de IAM.
-- Una cuenta de AWS.
-- Una cuenta en [football-data.org](https://football-data.org/) para obtener un token de API.
-
-## Instrucciones de Configuración
-
-Sigue estos pasos para desplegar el proyecto:
-
-1. **Clona el repositorio**:
-   ```bash
-   git clone https://github.com/AndersonD93/project_bets_manager
-   cd terraform
-   ```
-
-2. **Crea un secreto en AWS Secrets Manager**:
-   Ve a la consola de AWS Secrets Manager y crea un secreto con el nombre `project/footbal-data` que contenga la siguiente estructura:
-   ```json
-   {
-       "X-Auth-Token": "<TU_API_TOKEN>"
-   }
-   ```
-   Reemplaza `<TU_API_TOKEN>` con el token proporcionado por football-data.org.
-
-3. **Crea el archivo `config.js`**:
-   Crea un archivo llamado `config.js` en la carpeta `templates/js` con el siguiente contenido: (Este generara de forma dinamica la url requerida para la obtención de secretos)
-   ```javascript
-   const config = {
-       development: {
-           apiUrlSecrets: "${url_invoke_api}"
-       }
-   };
-
-   const environment = 'development';
-
-   export default config[environment];
-   ```
-4. **Inicializa Terraform usando el backend local**:
-   Comenta el bloque `backend` en el archivo `main.tf` y ejecuta los siguientes comandos para aprovisionar los recursos iniciales:
-   ```bash
-   terraform init
-   terraform plan
-   terraform apply
-   ```
-
-5. **Configura el backend remoto en Terraform(Opcional)**:
-   Descomenta el bloque `backend` en el archivo `main.tf`(Opcional si quieres manejar tu backend en forma remota):
-   ```hcl
-   terraform {
-       backend "s3" {
-           bucket         = "mi-bucket-unico-para-tf-state"
-           key            = "tf-infra/terraform.tfstate"
-           region         = "us-east-1"
-           encrypt        = true
-           dynamodb_table = "terraform-state-locking-ajduran2"
-       }
-   }
-   ```
-   Además, modifica la línea bucket_name dentro del módulo tf-state en main.tf para que coincida con el nombre del bucket configurado:
-
-   ```hcl
-      module "tf-state" {
-      source      = "./modules/tf-state"
-      bucket_name = "mi-bucket-unico-para-tf-state"
-   }
-   ```
-   Luego, vuelve a inicializar y aplica los cambios:
-   ```bash
-   terraform init
-   terraform apply
-   ```
-
-6. **Personaliza las variables**:
-   Actualiza el archivo `variables.tf` o proporciona un archivo `terraform.tfvars` con tu configuración:
-   ```hcl
-   region = "us-east-1"
-   project = "bets-manager"
-   ```
-
-7. **Despliega la infraestructura**:
-   ```bash
-   terraform apply
-   ```
-   Confirma los cambios escribiendo `yes` cuando se te solicite.
-
-8. **Accede a la aplicación**:
-   Una vez desplegado, Terraform mostrará información relevante, incluyendo la URL de CloudFront para el frontend y el endpoint de API Gateway.
-
-## Pruebas de la Aplicación
-
-1. Abre la URL del frontend en tu navegador.
-2. Usa la interfaz para interactuar con la API backend (por ejemplo, enviando solicitudes, viendo respuestas).
-3. También puedes probar la API directamente usando herramientas como Postman o curl.
-
-## Contribuciones
-
-¡Las contribuciones son bienvenidas! Aquí tienes cómo puedes ayudar:
-
-1. **Reporta Problemas**: Usa la pestaña Issues para reportar errores o sugerir funcionalidades.
-2. **Haz un Fork del Repositorio**: Realiza tus cambios y crea un pull request.
-3. **Propón Ideas**: Comparte tus ideas para mejorar el proyecto en la pestaña Discussions.
-
-### Directrices
-
-- Asegúrate de documentar los cambios realizados en el código.
-- Sigue el estilo y la estructura del código existente.
-- Incluye pruebas para cualquier nueva funcionalidad.
+El sistema está construido sobre una arquitectura **event-driven serverless** donde cada componente reacciona a eventos publicados en un bus central de EventBridge. Los datos fluyen desde Slack → API Gateway → Lambdas → DynamoDB → Consolidación → Reportes → IA.
 
 ---
 
-¡No dudes en contactarme si tienes preguntas o comentarios! Construyamos algo increíble juntos 🚀.
+## Componentes AWS
+
+| Recurso | Uso |
+|---|---|
+| **Lambda (12 funciones)** | Procesamiento de eventos, consolidación, notificaciones e IA |
+| **DynamoDB (5 tablas)** | Almacenamiento de movimientos, conceptos fijos y flujo de caja |
+| **API Gateway** | Endpoints REST para ingesta de movimientos y webhook de Slack |
+| **EventBridge** | Bus central `bus-financiero` + Pipes desde DynamoDB Streams |
+| **Glue Job** | Exportación diaria de DynamoDB a S3 con transformaciones Spark |
+| **S3 (3 buckets)** | Frontend estático, reportes CSV y datos RAG |
+| **CloudFront** | CDN para el frontend con OAC |
+| **Cognito** | Autenticación con grupos `admin` y `general` |
+| **OpenSearch** | Búsqueda vectorial (preparado para RAG) |
+| **SES** | Envío de reportes por email |
+| **SSM Parameter Store** | Catálogos financieros, reglas de compensación y proyecciones |
+| **Secrets Manager** | Credenciales de Slack (webhook y bot token) |
+
+---
+
+## Flujo de Datos
+
+```
+Usuario en Slack (/registrar)
+        │
+        ▼
+WebhookHandler ──► Modal dinámico con catálogo
+        │
+        ▼
+InterpretadorRouters ──► EventBridge bus-financiero
+        │
+        ▼
+Lambda especializada (Cuentas / Tarjetas / Proyecciones)
+        │  Valida contra catálogo (SSM)
+        ▼
+DynamoDB (HistoriaTarjetas / HistoriaCuentasAltoRendimiento / ConceptosFijos*)
+        │
+        ▼  DynamoDB Stream → EventBridge Pipe
+ConsolidaMovimientosFinancieros
+        │  Aplica reglas de compensación (SSM)
+        ▼
+FlujoDeCaja (tabla consolidada)
+        │
+        ├──► NotificadorSlack (confirmación en Slack)
+        │
+        ▼  Glue Job (diario 20:00)
+CSV + JSONL en S3
+        │
+        ├──► EnvioEmail (SES con URL prefirmada)
+        └──► EmbeddingLambda (vectores con Amazon Titan)
+                │
+                ▼
+        S3 Vectors (índice rag-index)
+                │
+                ▼  /consulta en Slack
+        QueryRagEmbedding ──► Claude 3 Sonnet ──► Respuesta en Slack
+```
+
+---
+
+## Lambdas
+
+### Ingesta de movimientos
+| Lambda | Descripción |
+|---|---|
+| `MovimientosCuentasEInversiones` | Registra movimientos de cuentas de alto rendimiento e inversiones. Valida dominio, cuenta y concepto contra el catálogo. Publica `movimiento.cuenta.confirmado`. |
+| `MovimientosTarjetas` | Registra movimientos de tarjetas de crédito. Valida franquicia. Publica `movimiento.tarjeta.confirmado`. |
+| `ParametrizarConceptosAhorro` | Registra conceptos fijos (gastos/ingresos proyectados). Enruta a `ConceptosFijosObligaciones` o `ConceptosFijosPersonal` según dominio. |
+
+### Consolidación y cierre
+| Lambda | Descripción |
+|---|---|
+| `ConsolidaMovimientosFinancieros` | Motor central. Escucha DynamoDB Streams de 4 tablas vía EventBridge Pipes. Aplica reglas de compensación desde SSM y actualiza `FlujoDeCaja`. |
+| `CierreMensual` | Cron el 1° de cada mes. Calcula saldos finales y crea `SALDO_INICIAL` para el mes siguiente. |
+| `ProyeccionesFijas` | Cron el 1° de cada mes. Carga proyecciones automáticas desde SSM y proyecta 3 meses adelante (idempotente). |
+
+### Integración Slack
+| Lambda | Descripción |
+|---|---|
+| `WebhookHandler` | Valida firma de Slack. Maneja slash commands `/registrar` y `/consulta`, construye modales dinámicos y enruta submissions. |
+| `InterpretadorRouters` | Transforma el state del modal al payload correcto y publica el evento en EventBridge. |
+| `NotificadorSlack` | Escucha eventos confirmados en EventBridge y envía notificaciones al canal de Slack. |
+
+### IA y reportes
+| Lambda | Descripción |
+|---|---|
+| `EmbeddingLambda` | Disparada por S3 al crear archivos JSONL en `output/rag/`. Genera embeddings con Amazon Titan y los inserta en S3 Vectors. |
+| `QueryRagEmbedding` | Recibe pregunta desde Slack, busca vectores similares y genera respuesta con Claude 3 Sonnet. |
+| `EnvioEmail` | Disparada por S3 al crear CSV en `output/reports/`. Envía email con SES con URL prefirmada (válida 2 horas). |
+
+---
+
+## Tablas DynamoDB
+
+| Tabla | PK | Streams | Propósito |
+|---|---|---|---|
+| `HistoriaTarjetas` | `trx_id` | ✅ | Movimientos de tarjetas de crédito |
+| `HistoriaCuentasAltoRendimiento` | `trx_id` | ✅ | Movimientos de cuentas e inversiones |
+| `ConceptosFijosObligaciones` | `trx_id` | ✅ | Gastos fijos del hogar (dominio CASA) |
+| `ConceptosFijosPersonal` | `trx_id` | ✅ | Gastos fijos personales |
+| `FlujoDeCaja` | `Dominio-Corte` / `Tipo-Concepto` | ❌ | Consolidación final por período |
+
+---
+
+## Reglas de Compensación
+
+Las reglas se almacenan en SSM (`/flujo-caja/reglas-compensacion`) y son evaluadas por `ConsolidaMovimientosFinancieros` en cada evento. Se cachean 5 minutos en memoria.
+
+| Regla | Condición | Efecto |
+|---|---|---|
+| `CUENTA_DISMINUYE_GASTO` | Movimiento de cuenta con valor negativo | Disminuye gasto proyectado y saldo de cuenta |
+| `MOV_TARJETA_REDUCE_PROYECCION` | Movimiento de tarjeta con valor positivo | Disminuye gasto proyectado e incrementa saldo de tarjeta |
+| `INGRESO_HOGAR_DISMINUYE_PROYECCION` | Concepto "INGRESO HOGAR" con valor positivo | Disminuye proyección del mismo concepto e incrementa saldo |
+
+---
+
+## Glue Job
+
+El job `export_dynamo_to_s3.py` se ejecuta diariamente a las 20:00 y realiza:
+
+1. Lee `FlujoDeCaja` desde DynamoDB con Spark
+2. Extrae dominio y corte de la clave compuesta `Dominio#Corte`
+3. Ajusta signos (tarjetas en CAJA_ACTUAL → negativo, gastos en PROYECCION → negativo)
+4. Genera tres salidas:
+   - **CSV** en `s3://.../reports/` → dispara `EnvioEmail`
+   - **JSONL** en `s3://.../rag/` → dispara `EmbeddingLambda`
+   - **CSV** en bucket del frontend → disponible en CloudFront
+
+---
+
+## Dominios Financieros
+
+El catálogo (`/flujo-caja/catalogo`) define los dominios válidos:
+
+- **CASA** — Cuentas del hogar (BDO, KUBO, NEQUI, EFECTIVO), tarjetas y conceptos compartidos
+- **PERSONAL** — Cuentas personales, conceptos de ahorro e ingresos individuales
+- **AHORRO** — Cuentas de ahorro con metas específicas
+- **INVERSIONES** — CDTs, acciones, monedas y cuentas de inversión
+
+---
+
+## Despliegue
+
+### Prerrequisitos
+
+- Terraform >= 1.5
+- AWS CLI configurado con permisos suficientes
+- Python 3.12 (para empaquetar layers)
+
+### Inicializar estado remoto
+
+```bash
+cd terraform/modules/tf-state
+terraform init
+terraform apply
+```
+
+### Desplegar infraestructura
+
+```bash
+cd terraform
+terraform init
+terraform plan
+terraform apply
+```
+
+### Variables principales
+
+| Variable | Descripción |
+|---|---|
+| `project` | Nombre del proyecto (tag en todos los recursos) |
+| `aws_region` | Región de despliegue |
+| `ses_email` | Email verificado en SES para envío de reportes |
+
+---
+
+## Seguridad
+
+- Roles IAM con permisos mínimos por Lambda
+- Slack webhook validado por firma HMAC en cada request
+- Credenciales de Slack en Secrets Manager (nunca en variables de entorno directas)
+- API Gateway con autorización Cognito en todos los endpoints (excepto webhook público)
+- CloudFront con OAC — el bucket S3 del frontend no es público
+- Catálogos y reglas en SSM con cache en memoria para reducir latencia y costos
