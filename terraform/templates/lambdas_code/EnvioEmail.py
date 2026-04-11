@@ -11,9 +11,6 @@ SES_RECIPIENT      = os.environ["SES_RECIPIENT"]
 URL_EXPIRATION_SEC = int(os.environ.get("URL_EXPIRATION_SEC", str(60 * 60 * 24)))  # 24h default
 
 
-# =========================
-# 🔐 Generar URL prefirmada
-# =========================
 def generate_presigned_url(bucket, key, expiration=URL_EXPIRATION_SEC):
     url = s3_client.generate_presigned_url(
         "get_object",
@@ -23,24 +20,21 @@ def generate_presigned_url(bucket, key, expiration=URL_EXPIRATION_SEC):
         },
         ExpiresIn=expiration
     )
-    print(f"🔐 URL prefirmada generada — expira en {expiration}s")
+    print(f"URL prefirmada generada — expira en {expiration}s")
     return url
 
 
-# =========================
-# 📧 Construir y enviar email con SES
-# =========================
 def send_email(destinatario, presigned_url, key, expiration_sec):
 
     nombre_archivo = key.split("/")[-1]
     expira_horas   = expiration_sec // 3600
 
-    subject = "📊 Reporte Financiero disponible — Controlador Financiero"
+    subject = "Reporte Financiero disponible — Controlador Financiero"
 
     body_html = f"""
     <html>
     <body style="font-family: Arial, sans-serif; color: #333;">
-        <h2>📊 Reporte Financiero generado</h2>
+        <h2>Reporte Financiero generado</h2>
         <p>Tu reporte <strong>{nombre_archivo}</strong> está listo para descargar.</p>
 
         <p>
@@ -58,7 +52,7 @@ def send_email(destinatario, presigned_url, key, expiration_sec):
         </p>
 
         <p style="color: #888; font-size: 12px;">
-            ⏳ Este enlace expira en <strong>{expira_horas} horas</strong>
+            Este enlace expira en <strong>{expira_horas} horas</strong>
             a partir de su generación.<br>
             Si el botón no funciona, copia y pega esta URL en tu navegador:<br>
             <small>{presigned_url}</small>
@@ -89,48 +83,31 @@ def send_email(destinatario, presigned_url, key, expiration_sec):
         }
     )
 
-    print(f"✅ Email enviado a {destinatario}")
+    print(f"Email enviado a {destinatario}")
 
 
-# =========================
-# 🚀 Handler
-# =========================
 def lambda_handler(event, context):
     try:
-        print("🔥 EVENTO CRUDO:")
+        print("EVENTO CRUDO:")
         print(json.dumps(event, indent=2))
 
-        # =========================
-        # 📦 Extraer Records de S3
-        # =========================
         records = event.get("Records", [])
 
         if not records:
-            print("❌ No hay Records en el evento")
+            print("No hay Records en el evento")
             return {"status": "skipped", "reason": "missing records"}
 
         for record in records:
-
-            # =========================
-            # 📍 Extraer bucket y key
-            # =========================
             bucket = record["s3"]["bucket"]["name"]
             key    = record["s3"]["object"]["key"]
 
-            print(f"📂 Nuevo objeto detectado: s3://{bucket}/{key}")
+            print(f"Nuevo objeto detectado: s3://{bucket}/{key}")
 
-            # =========================
-            # 🔐 Generar URL prefirmada
-            # =========================
             presigned_url = generate_presigned_url(bucket, key)
-
-            # =========================
-            # 📧 Enviar email
-            # =========================
             send_email(SES_RECIPIENT, presigned_url, key, URL_EXPIRATION_SEC)
 
         return {"status": "ok", "processed": len(records)}
 
     except Exception as e:
-        print(f"❌ Error: {str(e)}")
+        print(f"Error: {str(e)}")
         raise

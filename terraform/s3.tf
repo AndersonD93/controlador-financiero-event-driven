@@ -7,7 +7,6 @@ module "s3" {
 resource "aws_s3_bucket_notification" "reporting_triggers" {
   bucket = module.s3.bucket_names["reporting"]
 
-  # 🔹 Trigger RAG — archivos JSON en output/rag/
   lambda_function {
     lambda_function_arn = module.lambdas_backend_api.lambda_arns["EmbeddingLambda"]
     events              = ["s3:ObjectCreated:*"]
@@ -15,7 +14,6 @@ resource "aws_s3_bucket_notification" "reporting_triggers" {
     filter_suffix       = ".json"
   }
 
-  # 🔹 Trigger Email — archivos CSV en output/reports/
   lambda_function {
     lambda_function_arn = module.lambdas_backend_api.lambda_arns["EnvioEmail"]
     events              = ["s3:ObjectCreated:*"]
@@ -44,8 +42,6 @@ variable "vector_bucket_name" {
   type    = string
   default = "vector-bucket-rag"
 }
-
-#Parametrizaciones s3 host
 
 resource "aws_s3_bucket_public_access_block" "example" {
   bucket = module.s3.bucket_names["host"]
@@ -80,9 +76,6 @@ data "aws_iam_policy_document" "allow_access_from_another_principal" {
   }
 }
 */
-# ========================
-# Bucket policy
-# ========================
 data "aws_iam_policy_document" "allow_access_from_another_principal" {
   statement {
     effect = "Allow"

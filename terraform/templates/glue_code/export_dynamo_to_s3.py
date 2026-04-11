@@ -6,9 +6,6 @@ from pyspark.context import SparkContext
 from pyspark.sql import functions as F
 from pyspark.sql.window import Window
 
-# =====================
-# Parámetros
-# =====================
 args = getResolvedOptions(sys.argv, [
     'JOB_NAME',
     'DYNAMO_TABLE',
@@ -21,9 +18,6 @@ spark = glueContext.spark_session
 
 s3 = boto3.client("s3")
 
-# =====================
-# Lectura DynamoDB
-# =====================
 df = glueContext.create_dynamic_frame.from_options(
     connection_type="dynamodb",
     connection_options={
@@ -32,28 +26,16 @@ df = glueContext.create_dynamic_frame.from_options(
     }
 ).toDF()
 
-# =====================
-# Normalizar columnas
-# =====================
 for c in df.columns:
     df = df.withColumnRenamed(c, c.replace("-", "_"))
 
-# =====================
-# Dominio y corte
-# =====================
 df = (
     df.withColumn("dominio", F.split("Dominio_Corte", "#").getItem(0))
       .withColumn("corte", F.split("Dominio_Corte", "#").getItem(1))
 )
 
-# =====================
-# Mes actual
-# =====================
 mes_actual = F.date_format(F.current_date(), "yyyy-MM")
 
-# =====================
-# Reglas de signo
-# =====================
 df = df.withColumn(
     "valor_ajustado",
     F.when(
@@ -67,9 +49,6 @@ df = df.withColumn(
     ).otherwise(F.col("valor"))
 )
 
-# =====================
-# CAJA ACTUAL
-# =====================
 detalle_caja = (
     df.filter(F.col("bloque") == "CAJA_ACTUAL")
       .groupBy("dominio", F.lit(mes_actual).alias("corte"), "origen")
@@ -91,9 +70,6 @@ total_caja = (
         .withColumn("concepto", F.lit(""))
 )
 
-# =====================
-# PROYECCIÓN
-# =====================
 detalle_proyeccion = (
     df.filter(F.col("bloque") == "PROYECCION")
       .filter(F.col("corte") >= mes_actual)
@@ -148,9 +124,6 @@ proyeccion_acumulada = (
         )
 )
 
-# =====================
-# Unión final
-# =====================
 resultado = (
     detalle_caja
         .unionByName(total_caja)
@@ -158,9 +131,6 @@ resultado = (
         .unionByName(proyeccion_acumulada)
 )
 
-# =====================
-# Orden final
-# =====================
 resultado = resultado.orderBy(
     "dominio",
     "corte",
@@ -171,9 +141,7 @@ resultado = resultado.orderBy(
     "concepto"
 )
 
-# ============================================================
-# =============== SALIDA 1: CSV FLUJO DE CAJA =================
-# ============================================================
+# Salida 1: CSV flujo de caja
 tmp_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/reports"
 
 resultado.coalesce(1).write.mode("overwrite").option("header", "true").csv(tmp_path)
@@ -202,10 +170,7 @@ s3.delete_object(Bucket=bucket, Key=csv_file)
 
 print(f"CSV generado: s3://{bucket}/{final_key}")
 
-# ============================================================
-# =============== SALIDA 2: PUBLICAR EN HOST =================
-# ============================================================
-
+# Salida 2: publicar en bucket host
 host_bucket = "control-financiero-host"
 host_key = "reporte_flujo_caja.csv"
 
@@ -221,19 +186,13 @@ s3.copy_object(
 
 print(f"CSV publicado en host: s3://{host_bucket}/{host_key}")
 
-# ============================================================
-# ================= SALIDA 2: JSONL PARA RAG ==================
-# ============================================================
-
+# Salida 3: JSONL para RAG
 mes_actual_str = spark.sql(
     "SELECT date_format(current_date(), 'yyyy-MM') AS f"
 ).collect()[0]["f"]
 
 rag_df = (
     resultado
-        # ---------------------------
-        # Clasificación semántica
-        # ---------------------------
         .withColumn(
             "tipo_registro",
             F.when(F.col("concepto") == "", "TOTAL")
@@ -250,10 +209,6 @@ rag_df = (
             F.when(F.col("corte") >= mes_actual_str, True)
              .otherwise(False)
         )
-
-        # ---------------------------
-        # Texto optimizado para RAG
-        # ---------------------------
         .withColumn(
             "texto",
             F.concat(
@@ -273,18 +228,10 @@ rag_df = (
                 F.format_number(F.col("valor_ajustado"), 0)
             )
         )
-
-        # ---------------------------
-        # ID estable
-        # ---------------------------
         .withColumn(
             "id",
             F.concat_ws("_", "dominio", "corte", "seccion", "concepto")
         )
-
-        # ---------------------------
-        # Selección final estructurada
-        # ---------------------------
         .select(
             "id",
             "dominio",
@@ -298,10 +245,6 @@ rag_df = (
             "texto"
         )
 )
-
-# ============================================================
-# Escritura en ruta independiente definida por parámetro
-# ============================================================
 
 rag_path = args["OUTPUT_S3_PATH"].rstrip("/") + "/rag"
 

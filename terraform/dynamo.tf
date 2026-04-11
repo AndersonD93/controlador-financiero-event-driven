@@ -1,5 +1,3 @@
-#DYNAMO TABLE
-
 module "dynamo_tables_control_financiero" {
   source = "./modules/resources/dynamo_table"
   dynamo_tables = {
@@ -110,7 +108,6 @@ module "dynamo_tables_control_financiero" {
 }
 
 
-#DYNAMO PERMISSION
 module "table_permission" {
   source = "./modules/resources/dynamo_table/dynamo_permission"
   mapping_dynamo_permission = {

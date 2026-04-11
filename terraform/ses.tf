@@ -1,6 +1,3 @@
-# =========================
-# Identidad SES — email remitente
-# =========================
 resource "aws_sesv2_email_identity" "sender" {
   email_identity = var.ses_sender_email
 
@@ -9,9 +6,6 @@ resource "aws_sesv2_email_identity" "sender" {
   }
 }
 
-# =========================
-# Data sources — identidades SES existentes
-# =========================
 data "aws_sesv2_email_identity" "sender" {
   email_identity = var.ses_sender_email
 }

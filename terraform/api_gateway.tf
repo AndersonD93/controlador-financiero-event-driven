@@ -1,4 +1,3 @@
-#API GATEWAY
 module "api_control_financiero" {
   source          = "./modules/resources/api_gateway"
   name_api        = "api_control_financiero_moduls"

@@ -15,33 +15,17 @@ from catalogo_financiero import (
 logger = logging.getLogger()
 logger.setLevel(logging.INFO)
 
-# =========================
-# AWS Clients
-# =========================
 dynamodb = boto3.resource("dynamodb")
 ssm = boto3.client("ssm")
 
-# =========================
-# Tables
-# =========================
 table_casa = dynamodb.Table(os.getenv("conceptos_fijos_table"))
 table_personal = dynamodb.Table(os.getenv("conceptos_fijos_persona_table"))
 
-# =========================
-# Parameter Store
-# =========================
 PROYECCIONES_PARAM = "/flujo-caja/proyecciones-fijas"
 
-# =========================
-# Constantes
-# =========================
 ORIGEN_AUTOMATICO = "PROYECCION_AUTOMATICA"
 MESES_PROYECCION = 3  # Mes actual + 2 siguientes
 
-
-# =========================
-# Helpers
-# =========================
 
 def cargar_proyecciones():
     response = ssm.get_parameter(
@@ -100,10 +84,6 @@ def corte_ya_proyectado_automaticamente(table, dominio, corte):
     return response["Count"] > 0
 
 
-# =========================
-# Lambda Handler
-# =========================
-
 def lambda_handler(event, context):
     try:
         logger.info(f"Evento recibido: {event}")
@@ -114,25 +94,16 @@ def lambda_handler(event, context):
         elif isinstance(event, dict):
             body = event
 
-        # =========================
-        # Determinar cortes a procesar
-        # =========================
         corte_base = body.get("Corte")  # Opcional: fuerza un mes de inicio distinto
         cortes = calcular_cortes(corte_base)
 
         logger.info(f"Cortes a evaluar: {cortes}")
 
-        # =========================
-        # Cargar datos
-        # =========================
         catalogo = cargar_catalogo()
         proyecciones = cargar_proyecciones()
 
         resultado_por_corte = {}
 
-        # =========================
-        # Procesamiento por corte
-        # =========================
         for corte in cortes:
 
             resultado_por_corte[corte] = {

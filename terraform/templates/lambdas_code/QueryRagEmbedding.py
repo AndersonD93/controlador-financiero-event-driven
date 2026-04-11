@@ -49,9 +49,6 @@ def get_slack_token():
 
     return secret["SLACK_BOT_TOKEN"]        
 
-# --------------------------------------------------
-# 1️⃣ Generar embedding del prompt
-# --------------------------------------------------
 
 def get_embedding(text: str):
     response = bedrock_runtime.invoke_model(
@@ -67,10 +64,6 @@ def get_embedding(text: str):
     return result["embedding"]
 
 
-# --------------------------------------------------
-# 2️⃣ Consultar S3 Vectors
-# --------------------------------------------------
-
 def search_similar(embedding):
 
     response = s3vectors.query_vectors(
@@ -85,10 +78,6 @@ def search_similar(embedding):
 
     return response.get("vectors", [])
 
-
-# --------------------------------------------------
-# 3️⃣ Construir contexto
-# --------------------------------------------------
 
 def build_context(vectors):
 
@@ -108,10 +97,6 @@ Valor: {metadata.get('valor')}
 
     return "\n".join(context_parts)
 
-
-# --------------------------------------------------
-# 4️⃣ Invocar LLM (Claude en este ejemplo)
-# --------------------------------------------------
 
 def generate_response(question, context):
 
@@ -148,10 +133,6 @@ Pregunta:
     return result["content"][0]["text"]
 
 
-# --------------------------------------------------
-# 5️⃣ Handler principal
-# --------------------------------------------------
-
 def lambda_handler(event, context):
 
     print("==== EVENT ====")
@@ -168,10 +149,7 @@ def lambda_handler(event, context):
         print("❌ Missing channel_id")
         return
 
-    # 1️⃣ embedding
     embedding = get_embedding(question)
-
-    # 2️⃣ búsqueda vectorial
     vectors = search_similar(embedding)
 
     if not vectors:
@@ -182,7 +160,6 @@ def lambda_handler(event, context):
 
     print("Respuesta generada:", answer)
 
-    # 🔥 RESPUESTA FINAL A SLACK
     respond_to_slack(channel_id, answer)
 
     return {

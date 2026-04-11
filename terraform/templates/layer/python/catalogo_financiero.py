@@ -112,9 +112,7 @@ def obtener_cuentas_validas(catalogo, dominio, bloque="CAJA_ACTUAL", tipo=None):
 
 def normalizar_evento(event):
 
-    # =========================
     # EventBridge
-    # =========================
     if "detail" in event:
         detail = event.get("detail") or {}
         payload = detail.get("payload") or {}
@@ -122,25 +120,23 @@ def normalizar_evento(event):
 
         return payload, metadata, "eventbridge"
 
-    # =========================
     # API Gateway
-    # =========================
     if "body" in event:
 
         body = event.get("body")
 
-        print("🧪 BODY RAW:", body)
+        print("BODY RAW:", body)
 
         if isinstance(body, str):
             try:
                 body = json.loads(body)
             except Exception as e:
-                print("❌ Error parseando body:", str(e))
+                print("Error parseando body:", str(e))
                 body = {}
 
-        print("🧪 BODY PARSEADO:", body)
+        print("BODY PARSEADO:", body)
 
-        # ✅ Extraer user_id desde el contexto del autorizador Cognito
+        print("Extrayendo user_id desde el contexto del autorizador Cognito")
         request_context = event.get("requestContext") or {}
         authorizer = request_context.get("authorizer") or {}
         claims = authorizer.get("claims") or {}
@@ -148,9 +144,8 @@ def normalizar_evento(event):
 
         metadata = {"user_id": user_id}
 
-        print("🧾 Metadata extraída:", metadata)
+        print("Metadata extraída:", metadata)
 
         return body or {}, metadata, "apigateway"
 
-    # =========================
     return event or {}, {}, "unknown"

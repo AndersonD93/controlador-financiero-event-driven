@@ -5,17 +5,11 @@ import time
 from decimal import Decimal
 from botocore.exceptions import ClientError
 
-# ========================
-# AWS Clients
-# ========================
 dynamodb = boto3.resource("dynamodb")
 ssm = boto3.client("ssm")
 
 table = dynamodb.Table(os.getenv("flujo_caja_table"))
 
-# ========================
-# Parámetro de reglas
-# ========================
 REGLAS_PARAM = "/flujo-caja/reglas-compensacion"
 
 # Cache en memoria (cold-start aware)
@@ -23,9 +17,6 @@ REGLAS_CACHE = None
 REGLAS_CACHE_TS = 0
 REGLAS_TTL = 300  # 5 minutos
 
-# ========================
-# Contexto por tabla origen
-# ========================
 TABLE_CONTEXT_MAP = {
     "HistoriaCuentasAltoRendimiento_modules_IAC": {
         "tipo": "CUENTA",
@@ -47,9 +38,7 @@ TABLE_CONTEXT_MAP = {
     }
 }
 
-# ========================
-# Carga de reglas (cache)
-# ========================
+
 def cargar_reglas():
     global REGLAS_CACHE, REGLAS_CACHE_TS
 
@@ -69,29 +58,18 @@ def cargar_reglas():
     except ClientError as e:
         raise Exception(f"Error cargando reglas: {str(e)}")
 
-# ========================
-# Evaluador de reglas
-# ========================
+
 def regla_aplica(regla, contexto):
     print(f"→ Evaluando regla {regla.get('id')}")
 
-    # -------------------------
-    # Regla activa
-    # -------------------------
     if not regla.get("activo"):
         print("- Rechazada: regla inactiva")
         return False
 
-    # -------------------------
-    # Tipo origen
-    # -------------------------
     if contexto["tipo"] not in regla["tipos_origen"]:
         print("- Rechazada: tipo no coincide")
         return False
 
-    # -------------------------
-    # Bloque origen
-    # -------------------------
     if contexto["bloque"] != regla["bloque_origen"]:
         print("- Rechazada: bloque no coincide")
         return False
@@ -99,35 +77,23 @@ def regla_aplica(regla, contexto):
     concepto = contexto.get("concepto")
     dominio = contexto.get("dominio")
 
-    # -------------------------
-    # Exclusión por concepto
-    # -------------------------
     if "excluir_conceptos" in regla:
         if concepto in regla["excluir_conceptos"]:
             print(f"- Rechazada: concepto excluido ({concepto})")
             return False
 
-    # -------------------------
-    # Inclusión por concepto (NUEVO)
     # Solo aplica si la lista está definida en la regla
-    # -------------------------
     if "incluir_conceptos" in regla:
         if concepto not in regla["incluir_conceptos"]:
             print(f"- Rechazada: concepto no está en incluir_conceptos ({concepto})")
             return False
 
-    # -------------------------
-    # Exclusión por dominio (NUEVO)
     # Solo aplica si la lista está definida en la regla
-    # -------------------------
     if "excluir_dominio" in regla:
         if dominio in regla["excluir_dominio"]:
             print(f"- Rechazada: dominio excluido ({dominio})")
             return False
 
-    # -------------------------
-    # Condición por valor
-    # -------------------------
     valor = contexto["valor"]
     condicion = regla["condicion_valor"]
 
@@ -139,9 +105,6 @@ def regla_aplica(regla, contexto):
         print("- Rechazada: valor no negativo")
         return False
 
-    # -------------------------
-    # Requiere origen
-    # -------------------------
     if regla.get("requiere_origen") and not contexto.get("origen"):
         print("- Rechazada: origen requerido")
         return False
@@ -149,9 +112,7 @@ def regla_aplica(regla, contexto):
     print("✓ Regla aplica")
     return True
 
-# ========================
-# Motor de operación
-# ========================
+
 def aplicar_operacion(accion, contexto):
     valor = contexto["valor"]
     monto = abs(valor)
@@ -164,9 +125,6 @@ def aplicar_operacion(accion, contexto):
 
     raise Exception(f"Operación no soportada: {accion['operacion']}")
 
-# ========================
-# Monto seguro (no lleva a negativo)
-# ========================
 
 def calcular_monto_seguro(pk, sk, monto_propuesto):
     try:
@@ -200,9 +158,7 @@ def calcular_monto_seguro(pk, sk, monto_propuesto):
         print(f"ERROR MONTO SEGURO: {str(e)}")
         raise
 
-# ========================
-# Handler principal
-# ========================
+
 def lambda_handler(event, context):
     print("EVENT RAW:", json.dumps(event))
 
@@ -246,7 +202,6 @@ def lambda_handler(event, context):
             else:
                 concepto = item["concepto"].upper()
 
-            # Origen reutilizando campo operativo
             origen = None
             field = context_map.get("origen_field")
             if field and field in item:
@@ -285,16 +240,13 @@ def lambda_handler(event, context):
 
                     print(f"DEBUG SK GENERADO → PK: {pk} | SK: {sk} | Monto: {monto}")
 
-                    # ------------------------------------------------
                     # Protección anti-negativo para PROYECCION
-                    # ------------------------------------------------
                     if accion["bloque_destino"] == "PROYECCION" and monto < 0:
                         monto = calcular_monto_seguro(pk, sk, monto)
 
                     if monto == 0:
                         print(f"CHECKPOINT 9b - Monto ajustado a 0, se omite escritura → {sk}")
                         continue
-                    # ------------------------------------------------
 
                     print(
                         f"CHECKPOINT 9 - APLICANDO REGLA {regla['id']} "
@@ -325,9 +277,7 @@ def lambda_handler(event, context):
                         }
                     )
 
-            # ========================
-            # CONSOLIDACIÓN BASE (DEFAULT)
-            # ========================
+            # Consolidación base cuando no aplica ninguna regla
             if not regla_aplicada:
                 print("CHECKPOINT DEFAULT - No aplicó regla, consolidación base")
 
@@ -374,9 +324,7 @@ def lambda_handler(event, context):
         "body": json.dumps({"message": "Consolidación ejecutada correctamente"})
     }
 
-# ========================
-# Utilidades
-# ========================
+
 def deserialize(image):
     result = {}
     for k, v in image.items():

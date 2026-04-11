@@ -10,9 +10,6 @@ variable "account_id"{
   default = "122610499801"
 }
 
-# =========================
-# Variables
-# =========================
 variable "ses_sender_email" {
   description = "Email remitente verificado en SES"
   type        = string

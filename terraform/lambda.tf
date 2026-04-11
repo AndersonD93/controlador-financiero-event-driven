@@ -1,4 +1,3 @@
-#LAMBDAS
 module "lambdas_backend_api" {
   source = "./modules/resources/lambda"
   lambda_map = {

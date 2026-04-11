@@ -35,7 +35,7 @@ def lambda_handler(event, context):
     try:
         logger.info("INICIO CIERRE MENSUAL")
 
-        # 1️⃣ Cargar catálogo desde el Layer (ya no desde SSM directo)
+        # Cargar catálogo desde el Layer
         catalogo = cargar_catalogo()
 
         corte_actual, corte_siguiente = obtener_cortes()

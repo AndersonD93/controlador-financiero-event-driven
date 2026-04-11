@@ -1,7 +1,3 @@
-# ========================
-# CloudFront Origin Access Control
-# Reemplaza el acceso público del bucket por acceso controlado
-# ========================
 resource "aws_cloudfront_origin_access_control" "dashboard" {
   name                              = "control-financiero-oac"
   description                       = "OAC para dashboard Controlador Financiero"
@@ -10,9 +6,6 @@ resource "aws_cloudfront_origin_access_control" "dashboard" {
   signing_protocol                  = "sigv4"
 }
 
-# ========================
-# CloudFront Distribution
-# ========================
 resource "aws_cloudfront_distribution" "dashboard" {
   enabled             = true
   default_root_object = "index.html"
@@ -82,9 +75,6 @@ resource "aws_cloudfront_distribution" "dashboard" {
 }
 
 
-# ========================
-# Output: URL de acceso
-# ========================
 output "dashboard_url" {
   description = "URL del dashboard Controlador Financiero"
   value       = "https://${aws_cloudfront_distribution.dashboard.domain_name}"

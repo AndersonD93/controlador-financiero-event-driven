@@ -16,9 +16,6 @@ signing_secret_cache = None
 
 SLACK_TOKEN_NAME = os.environ["SLACK_BOT_TOKEN"]
 
-# ==============================
-# 🔐 Seguridad Slack
-# ==============================
 
 def get_signing_secret():
     global signing_secret_cache
@@ -55,19 +52,11 @@ def verify_slack_request(headers, body):
     return hmac.compare_digest(my_signature, slack_signature)
 
 
-# ==============================
-# 📦 Catalogo
-# ==============================
-
 from catalogo_financiero import (
     cargar_catalogo,
     obtener_conceptos_validos,
     obtener_cuentas_validas
 )
-
-# ==============================
-# 🧠 Tipos de registro
-# ==============================
 
 TIPO_REGISTRO_MOVIMIENTO = "MOVIMIENTO_GENERAL"
 TIPO_REGISTRO_TARJETA = "MOVIMIENTO_TARJETA"
@@ -102,9 +91,6 @@ def generar_cortes(n=6):
 
     return cortes
 
-# ==============================
-# 🧱 Modal dinámico
-# ==============================
 
 def build_modal(catalogo, dominio=None, state=None):
 
@@ -116,14 +102,12 @@ def build_modal(catalogo, dominio=None, state=None):
 
     bloques_disponibles = catalogo.get(dominio_actual, {}).keys()
 
-    # 🔥 reglas por tipo
     incluir_cuenta = True
     incluir_concepto = True
 
     if tipo_registro == TIPO_REGISTRO_PROYECCION:
         incluir_cuenta = False
 
-    # 🔹 datos
     conceptos = []
     cuentas = []
 
@@ -141,7 +125,6 @@ def build_modal(catalogo, dominio=None, state=None):
             "CAJA_ACTUAL"
         )
 
-    # 🔹 tipo registro
     tipo_options = [
         {
             "text": {"type": "plain_text", "text": "Registrar movimiento de cuenta/inversión/ahorro"},
@@ -167,7 +150,6 @@ def build_modal(catalogo, dominio=None, state=None):
     if tipo_initial:
         tipo_element["initial_option"] = tipo_initial
 
-    # 🔹 dominio
     dominio_options = build_options(dominios)
     dominio_initial = find_option(dominio_options, dominio_actual)
 
@@ -180,7 +162,6 @@ def build_modal(catalogo, dominio=None, state=None):
     if dominio_initial:
         dominio_element["initial_option"] = dominio_initial
 
-    # 🔹 cuenta
     cuenta_element = None
     if cuentas:
         cuenta_options = build_options(cuentas)
@@ -196,7 +177,6 @@ def build_modal(catalogo, dominio=None, state=None):
         if cuenta_initial:
             cuenta_element["initial_option"] = cuenta_initial
 
-    # 🔹 concepto
     concepto_element = None
     if conceptos:
         concepto_options = build_options(conceptos)
@@ -212,7 +192,6 @@ def build_modal(catalogo, dominio=None, state=None):
         if concepto_initial:
             concepto_element["initial_option"] = concepto_initial
 
-    # 🔹 corte
     cortes = generar_cortes()
     corte_options = build_options(cortes)
     corte_value = state.get("corte") if state else cortes[0]
@@ -227,10 +206,8 @@ def build_modal(catalogo, dominio=None, state=None):
     if corte_initial:
         corte_element["initial_option"] = corte_initial
 
-    # 🔹 bloques
     blocks = []
 
-    # tipo registro
     blocks.append({
         "type": "input",
         "block_id": "tipo_registro",
@@ -239,7 +216,6 @@ def build_modal(catalogo, dominio=None, state=None):
         "element": tipo_element
     })
 
-    # dominio
     blocks.append({
         "type": "input",
         "block_id": "dominio",
@@ -248,7 +224,6 @@ def build_modal(catalogo, dominio=None, state=None):
         "element": dominio_element
     })
 
-    # corte
     blocks.append({
         "type": "input",
         "block_id": "corte",
@@ -272,7 +247,6 @@ def build_modal(catalogo, dominio=None, state=None):
             "element": concepto_element
         })
 
-    # descripción
     blocks.append({
         "type": "input",
         "block_id": "descripcion",
@@ -285,7 +259,6 @@ def build_modal(catalogo, dominio=None, state=None):
         }
     })
 
-    # valor
     blocks.append({
         "type": "input",
         "block_id": "valor",
@@ -300,7 +273,7 @@ def build_modal(catalogo, dominio=None, state=None):
     return {
         "type": "modal",
         "callback_id": "registro_financiero",
-        "private_metadata": json.dumps({           # ← serializa todo el state
+        "private_metadata": json.dumps({
             "channel_id": (state or {}).get("channel_id")
         }),
         "title": {"type": "plain_text", "text": "Control Financiero"},
@@ -318,9 +291,6 @@ def get_slack_token():
 
     return secret["SLACK_BOT_TOKEN"]
 
-# ==============================
-# 📡 Slack API
-# ==============================
 
 def open_modal(trigger_id, modal):
 
@@ -348,9 +318,6 @@ def open_modal(trigger_id, modal):
         print("Slack response:", response_body)
 
 
-# ==============================
-# 🔁 Router Invocation
-# ==============================
 ROUTER_FUNCTION_ARN = os.environ["ROUTER_FUNCTION_ARN"]
 QUERY_FUNCTION_ARN = os.environ["QUERY_FUNCTION_ARN"]
 
@@ -370,9 +337,6 @@ def invoke_query_lambda(payload):
         Payload=json.dumps(payload)
     )
 
-# ==============================
-# 🧠 Parser Slack
-# ==============================
 
 def parse_body(body):
 
@@ -412,10 +376,6 @@ def update_modal(view_id, modal):
         print("Respuesta Slack:", response.read().decode())
  
       
-# ==============================
-# 🧠 State extractor
-# ==============================
-
 def extract_state(values):
 
     def get_value(block, action):
@@ -484,9 +444,6 @@ def build_modal_consulta(metadata=None):
         ]
     }           
 
-# ==============================
-# 🧠 Reglas por tipo de registro
-# ==============================
 
 RULES = {
     TIPO_REGISTRO_PROYECCION: {
@@ -509,9 +466,6 @@ RULES = {
     }
 }
 
-# ==============================
-# ✅ Validación central
-# ==============================
 
 def validate_submission(state, catalogo):
 
@@ -535,9 +489,6 @@ def validate_submission(state, catalogo):
         errores["tipo_registro"] = "Tipo de registro inválido"
         return errores
 
-    # =========================
-    # 🔹 VALIDAR CUENTA
-    # =========================
     if reglas["requiere_cuenta"]:
 
         if not cuenta:
@@ -556,9 +507,6 @@ def validate_submission(state, catalogo):
         if cuenta:
             errores["cuenta"] = "Este tipo de registro no permite cuenta"
 
-    # =========================
-    # 🔹 VALIDAR CONCEPTO
-    # =========================
     bloques = catalogo.get(dominio, {})
     tiene_proyeccion = "PROYECCION" in bloques
 
@@ -578,9 +526,6 @@ def validate_submission(state, catalogo):
                 
     return errores
     
-# ==============================
-# 🚀 Handler principal
-# ==============================
 
 def lambda_handler(event, context):
 
@@ -593,9 +538,8 @@ def lambda_handler(event, context):
     print("==== RAW BODY ====")
     print(raw_body)
 
-    # 🔐 Validación firma
     if not verify_slack_request(headers, raw_body):
-        print("❌ Firma inválida")
+        print("Firma inválida")
         return {
             "statusCode": 401,
             "body": "invalid signature"
@@ -606,12 +550,10 @@ def lambda_handler(event, context):
     print("==== PARSED BODY ====")
     print(json.dumps(body, indent=2))
 
-    # =========================================================
-    # 🔹 1. SLASH COMMANDS
-    # =========================================================
+    # SLASH COMMANDS
     if isinstance(body, dict) and "command" in body:
 
-        print("👉 Detectado SLASH COMMAND")
+        print("Detectado SLASH COMMAND")
 
         raw_command = body["command"]
 
@@ -623,7 +565,7 @@ def lambda_handler(event, context):
 
         if command == "/registrar":
 
-            print("📌 Abrir modal REGISTRO")
+            print("Abrir modal REGISTRO")
 
             channel_id = body.get("channel_id")
             if isinstance(channel_id, list):
@@ -638,9 +580,8 @@ def lambda_handler(event, context):
 
         elif command == "/consulta":
 
-            print("📌 Abrir modal CONSULTA")
+            print("Abrir modal CONSULTA")
 
-            # 👇 obtener channel_id del slash command
             channel_id = body.get("channel_id")
             if isinstance(channel_id, list):
                 channel_id = channel_id[0]
@@ -654,23 +595,20 @@ def lambda_handler(event, context):
             open_modal(trigger_id, modal)
 
         else:
-            print(f"⚠️ Comando no soportado: {command}")
+            print(f"Comando no soportado: {command}")
 
         return {
             "statusCode": 200,
             "body": ""
         }
 
-    # =============================
     # BLOCK ACTIONS
-    # =============================
     if isinstance(body, dict) and body.get("type") == "block_actions":
 
         action = body["actions"][0]
         catalogo = cargar_catalogo()
         state = extract_state(body["view"]["state"]["values"])
 
-        # 👇 Rescatar channel_id del private_metadata antes de rebuilding
         channel_id = None
         metadata_raw = body.get("view", {}).get("private_metadata")
 
@@ -681,7 +619,6 @@ def lambda_handler(event, context):
             except Exception as e:
                 print("Error parsing private_metadata:", str(e))
 
-        # Preservar channel_id en el state para que build_modal lo incluya
         if channel_id:
             state["channel_id"] = channel_id
 
@@ -700,20 +637,17 @@ def lambda_handler(event, context):
 
         return {"statusCode": 200, "body": ""}
 
-    # =========================================================
-    # 🔹 3. VIEW SUBMISSION
-    # =========================================================
+    # VIEW SUBMISSION
     elif isinstance(body, dict) and body.get("type") == "view_submission":
 
-        print("👉 Detectado VIEW SUBMISSION")
+        print("Detectado VIEW SUBMISSION")
 
         callback_id = body["view"]["callback_id"]
         values = body["view"]["state"]["values"]
 
-        # 🔹 REGISTRO
         if callback_id == "registro_financiero":
 
-            print("➡️ Validando registro")
+            print("Validando registro")
 
             catalogo = cargar_catalogo()
 
@@ -724,7 +658,7 @@ def lambda_handler(event, context):
             errores = validate_submission(state, catalogo)
 
             if errores:
-                print("❌ Errores de validación:", errores)
+                print("Errores de validación:", errores)
 
                 return {
                     "statusCode": 200,
@@ -734,9 +668,8 @@ def lambda_handler(event, context):
                     })
                 }
 
-            print("✅ Validación exitosa")
+            print("Validación exitosa")
 
-            # 👇 Extraer channel_id desde private_metadata del modal
             channel_id = None
             metadata_raw = body.get("view", {}).get("private_metadata")
 
@@ -749,17 +682,15 @@ def lambda_handler(event, context):
 
             print("channel_id:", channel_id)
 
-            # 🔥 Solo si pasa validación
             invoke_router({
                 "state": state,
                 "raw": body,
-                "channel_id": channel_id  # ← propagado al router
+                "channel_id": channel_id
             })
 
-        # 🔹 CONSULTA
         elif callback_id == "consulta_financiera":
 
-            print("➡️ Procesando consulta")
+            print("Procesando consulta")
 
             try:
                 question = values["question"]["question_input"]["value"]
@@ -768,7 +699,6 @@ def lambda_handler(event, context):
 
             print("Pregunta:", question)
 
-            # 👇 recuperar metadata del modal
             metadata_raw = body.get("view", {}).get("private_metadata")
 
             channel_id = None
@@ -795,11 +725,8 @@ def lambda_handler(event, context):
             "body": json.dumps({"response_action": "clear"})
         }
 
-    # =========================================================
-    # 🔹 FALLBACK
-    # =========================================================
     else:
-        print("⚠️ Evento no reconocido")
+        print("Evento no reconocido")
         return {
             "statusCode": 200,
             "body": "ok"

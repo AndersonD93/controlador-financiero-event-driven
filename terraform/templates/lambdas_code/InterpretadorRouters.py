@@ -8,23 +8,16 @@ eventbridge = boto3.client("events")
 
 EVENT_BUS_NAME = os.environ["EVENT_BUS_NAME"]
 
-# ==============================
-# 🧠 Helpers
-# ==============================
 
 def fecha_hoy():
     return datetime.utcnow().strftime("%Y-%m-%d")
 
 
-# ==============================
-# 🧱 Builders de payload
-# ==============================
-
 def build_movimiento_general(state):
 
     concepto = state.get("concepto")
 
-    # 🔥 Caso especial INVERSIONES
+    # Caso especial INVERSIONES: el concepto se toma de la cuenta
     if state.get("dominio") == "INVERSIONES":
         concepto = state.get("cuenta")
 
@@ -64,10 +57,6 @@ def build_proyeccion(state):
     }
 
 
-# ==============================
-# 🚀 Publicar en EventBridge
-# ==============================
-
 def publish_event(event_type, payload, metadata):
 
     response = eventbridge.put_events(
@@ -87,10 +76,6 @@ def publish_event(event_type, payload, metadata):
     print("EventBridge response:", response)
 
 
-# ==============================
-# 🚀 Handler principal
-# ==============================
-
 def lambda_handler(event, context):
 
     print("Evento recibido en InterpretadorRouter:")
@@ -102,7 +87,7 @@ def lambda_handler(event, context):
         raw = event.get("raw")
 
         if not state:
-            print("❌ Evento no contiene state")
+            print("Evento no contiene state")
             return
 
         tipo = state.get("tipo_registro")
@@ -114,10 +99,6 @@ def lambda_handler(event, context):
         }
 
         print("Tipo:", tipo)
-
-        # ==========================
-        # 🧠 Routing + transformación
-        # ==========================
 
         if tipo == "MOVIMIENTO_GENERAL":
 
@@ -140,7 +121,6 @@ def lambda_handler(event, context):
         print("Payload generado:")
         print(json.dumps(payload, indent=2))
 
-        # 🔥 Publicar evento
         publish_event(event_type, payload, metadata)
         
         print("EVENTO ENVIADO A EVENTBRIDGE:")

@@ -12,20 +12,11 @@ from catalogo_financiero import (
     normalizar_evento
 )
 
-# =========================
-# AWS clients
-# =========================
 dynamodb = boto3.resource("dynamodb")
 
-# =========================
-# DynamoDB tables
-# =========================
 table_casa = dynamodb.Table(os.getenv("conceptos_fijos_table"))
 table_personal = dynamodb.Table(os.getenv("conceptos_fijos_persona_table"))
 
-# =========================
-# Headers HTTP
-# =========================
 HEADERS = {
     "Access-Control-Allow-Origin": "*",
     "Content-Type": "application/json",
@@ -33,9 +24,6 @@ HEADERS = {
     "Access-Control-Allow-Headers": "Content-Type, Authorization"
 }
 
-# =========================
-# 🧩 Helper respuesta
-# =========================
 def build_response(source, status, body):
     if source == "apigateway":
         return {
@@ -66,41 +54,32 @@ def publicar_evento(detail_type, item, source, channel_id=None):
             "EventBusName": os.getenv("EVENT_BUS_NAME")
         }])
 
-        print(f"📡 Evento publicado: {detail_type}")
+        print(f"Evento publicado: {detail_type}")
 
     except Exception as e:
         print(f"⚠️ Error publicando evento en EventBridge: {str(e)}")
 
-# =========================
-# 🚀 Handler
-# =========================
 def lambda_handler(event, context):
     try:
-        print("🔥 EVENTO CRUDO:")
+        print("EVENTO CRUDO:")
         print(json.dumps(event, indent=2))
 
-        # =========================
-        # 🧠 Normalización única
-        # =========================
         payload, metadata, source = normalizar_evento(event)
 
         if not isinstance(payload, dict):
-            print("⚠️ Payload inválido, se fuerza a {}")
+            print("Payload inválido, se fuerza a {}")
             payload = {}
 
         metadata = metadata or {}
 
-        print("📦 Payload normalizado:")
+        print("Payload normalizado:")
         print(json.dumps(payload, indent=2))
 
-        print("🧾 Metadata:")
+        print("Metadata:")
         print(json.dumps(metadata, indent=2))
 
-        print("🔎 Source:", source)
+        print("Source:", source)
 
-        # =========================
-        # ✅ Validación obligatoria
-        # =========================
         required_fields = [
             "DominioFinanciero",
             "Concepto",
@@ -118,9 +97,6 @@ def lambda_handler(event, context):
             print("❌", error)
             return build_response(source, 400, error)
 
-        # =========================
-        # 🧠 Normalización de valores
-        # =========================
         dominio = payload["DominioFinanciero"].strip().upper()
         concepto = payload["Concepto"].strip().upper()
         subconcepto = payload.get("Subconcepto")
@@ -128,7 +104,6 @@ def lambda_handler(event, context):
         if subconcepto:
             subconcepto = subconcepto.strip().upper()
 
-        # 🔥 Normalizar valor numérico
         try:
             valor = Decimal(str(payload["Valor"]))
         except Exception:
@@ -137,22 +112,13 @@ def lambda_handler(event, context):
                 "valor_recibido": payload["Valor"]
             })
 
-        # =========================
-        # 📦 Cargar catálogo
-        # =========================
         catalogo = cargar_catalogo()
 
-        # =========================
-        # ✅ Validar dominio
-        # =========================
         try:
             validar_dominio(catalogo, dominio)
         except ValueError as e:
             return build_response(source, 400, {"message": str(e)})
 
-        # =========================
-        # ✅ Selección de tabla
-        # =========================
         if dominio == "CASA":
             table = table_casa
         elif dominio in ["PERSONAL", "AHORRO", "INVERSIONES"]:
@@ -162,9 +128,6 @@ def lambda_handler(event, context):
                 "message": "DominioFinanciero inválido"
             })
 
-        # =========================
-        # ✅ Validar concepto
-        # =========================
         try:
             conceptos_validos = obtener_conceptos_validos(
                 catalogo,
@@ -185,9 +148,6 @@ def lambda_handler(event, context):
                 "permitidos": conceptos_validos
             })
 
-        # =========================
-        # 🧱 Construcción item
-        # =========================
         item = {
             "trx_id": str(uuid.uuid4()),
             "dominioFinanciero": dominio,
@@ -202,18 +162,13 @@ def lambda_handler(event, context):
         if subconcepto:
             item["subconcepto"] = subconcepto
 
-        print("📝 Item a guardar:")
+        print("Item a guardar:")
         print(json.dumps(item, indent=2, default=str))
 
-        # =========================
-        # 💾 Persistencia
-        # =========================
         table.put_item(Item=item)
         if source == "eventbridge":
             publicar_evento("concepto.fijo.confirmado", item, source,channel_id=metadata.get("channel_id"))
-        # =========================
-        # 📤 Respuesta
-        # =========================
+
         response = {
             "message": "Concepto registrado correctamente",
             "trx_id": item["trx_id"],

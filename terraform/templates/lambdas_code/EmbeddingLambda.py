@@ -14,15 +14,15 @@ EMBED_MODEL = os.environ["EMBED_MODEL"]
 
 def reset_index():
     try:
-        print("🧹 Eliminando índice existente...")
+        print("Eliminando índice existente...")
         s3vectors.delete_index(
             vectorBucketName=VECTOR_BUCKET,
             indexName=VECTOR_INDEX
         )
     except Exception as e:
-        print("⚠️ Índice no existía:", str(e))
+        print("Índice no existía:", str(e))
 
-    print("🆕 Creando índice nuevo...")
+    print("Creando índice nuevo...")
 
     s3vectors.create_index(
         vectorBucketName=VECTOR_BUCKET,

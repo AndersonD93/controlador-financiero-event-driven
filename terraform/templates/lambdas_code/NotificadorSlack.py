@@ -3,28 +3,16 @@ import boto3
 import os
 import urllib.request
 
-# =========================
-# AWS clients
-# =========================
 secrets_client = boto3.client("secretsmanager")
 
-# =========================
-# Config
-# =========================
 SLACK_TOKEN_NAME = os.environ["SLACK_BOT_TOKEN"]
 
-# =========================
-# Emojis por detail-type
-# =========================
 EMOJIS = {
     "movimiento.tarjeta.registrado": "💳",
     "movimiento.cuenta.registrado":  "🏦",
     "concepto.fijo.registrado":      "📌",
 }
 
-# =========================
-# 🔐 Token Slack — cache en memoria
-# =========================
 slack_token_cache = None
 
 def get_slack_token():
@@ -43,9 +31,6 @@ def get_slack_token():
     return slack_token_cache
 
 
-# =========================
-# 📤 chat.postMessage
-# =========================
 def post_message(channel_id, blocks):
 
     url = "https://slack.com/api/chat.postMessage"
@@ -70,13 +55,10 @@ def post_message(channel_id, blocks):
 
     with urllib.request.urlopen(req) as response:
         body = response.read().decode("utf-8")
-        print(f"✅ Slack response: {body}")
+        print(f"Slack response: {body}")
         return json.loads(body)
 
 
-# =========================
-# 🧱 Builder mensaje
-# =========================
 def build_blocks(detail_type, detail):
 
     emoji    = EMOJIS.get(detail_type, "📬")
@@ -120,12 +102,9 @@ def build_blocks(detail_type, detail):
     ]
 
 
-# =========================
-# 🚀 Handler
-# =========================
 def lambda_handler(event, context):
     try:
-        print("🔥 EVENTO CRUDO:")
+        print("EVENTO CRUDO:")
         print(json.dumps(event, indent=2))
 
         detail_type = event.get("detail-type", "unknown")
@@ -134,33 +113,27 @@ def lambda_handler(event, context):
         if isinstance(detail, str):
             detail = json.loads(detail)
 
-        print(f"📨 detail-type: {detail_type}")
-        print(f"📦 detail: {json.dumps(detail, indent=2)}")
+        print(f"detail-type: {detail_type}")
+        print(f"detail: {json.dumps(detail, indent=2)}")
 
-        # =========================
-        # 📍 channel_id desde detail
-        # =========================
         channel_id = detail.get("channel_id")
 
         if not channel_id:
-            print("❌ channel_id no presente en el detail, no se puede notificar")
+            print("channel_id no presente en el detail, no se puede notificar")
             return {"status": "skipped", "reason": "missing channel_id"}
 
-        # =========================
-        # 🧱 Construir y enviar
-        # =========================
         blocks = build_blocks(detail_type, detail)
 
         result = post_message(channel_id, blocks)
 
         if not result.get("ok"):
-            print(f"⚠️ Slack error: {result.get('error')}")
+            print(f"Slack error: {result.get('error')}")
             raise Exception(f"Slack API error: {result.get('error')}")
 
-        print(f"📨 Mensaje enviado al canal {channel_id} — ts: {result.get('ts')}")
+        print(f"Mensaje enviado al canal {channel_id} — ts: {result.get('ts')}")
 
         return {"status": "ok", "ts": result.get("ts")}
 
     except Exception as e:
-        print(f"❌ Error al notificar Slack: {str(e)}")
+        print(f"Error al notificar Slack: {str(e)}")
         raise

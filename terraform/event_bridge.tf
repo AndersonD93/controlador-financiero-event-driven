@@ -1,4 +1,3 @@
-#Rol para la canalización de Event Bridge
 resource "aws_iam_role" "pipe_role" {
   name = "eventbridge-pipe-dynamo-role"
 
@@ -13,8 +12,6 @@ resource "aws_iam_role" "pipe_role" {
   }]
 })
 }
-
-#Permisos del rol
 
 resource "aws_iam_role_policy" "pipe_policy" {
   role = aws_iam_role.pipe_role.id
@@ -48,7 +45,6 @@ resource "aws_iam_role_policy" "pipe_policy" {
   })
 }
 
-#Event Bridge Canalización
 resource "aws_pipes_pipe" "dynamo_to_lambda_historia_tarjetas" {
   name     = "pipe-dynamo-movimientos-tarjetas"
   role_arn = aws_iam_role.pipe_role.arn
