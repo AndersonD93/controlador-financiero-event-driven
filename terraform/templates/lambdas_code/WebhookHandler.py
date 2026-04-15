@@ -61,6 +61,7 @@ from catalogo_financiero import (
 TIPO_REGISTRO_MOVIMIENTO = "MOVIMIENTO_GENERAL"
 TIPO_REGISTRO_TARJETA = "MOVIMIENTO_TARJETA"
 TIPO_REGISTRO_PROYECCION = "PROYECCION"
+TIPO_REGISTRO_TRANSFERENCIA = "TRANSFERENCIA"
 
 def build_options(items):
     return [
@@ -104,6 +105,7 @@ def build_modal(catalogo, dominio=None, state=None):
 
     incluir_cuenta = True
     incluir_concepto = True
+    es_transferencia = tipo_registro == TIPO_REGISTRO_TRANSFERENCIA
 
     if tipo_registro == TIPO_REGISTRO_PROYECCION:
         incluir_cuenta = False
@@ -137,6 +139,10 @@ def build_modal(catalogo, dominio=None, state=None):
         {
             "text": {"type": "plain_text", "text": "Registrar proyección de gasto/ingreso"},
             "value": TIPO_REGISTRO_PROYECCION
+        },
+        {
+            "text": {"type": "plain_text", "text": "Transferencia entre cuentas"},
+            "value": TIPO_REGISTRO_TRANSFERENCIA
         }
     ]
 
@@ -192,6 +198,24 @@ def build_modal(catalogo, dominio=None, state=None):
         if concepto_initial:
             concepto_element["initial_option"] = concepto_initial
 
+    # Cuenta destino: solo visible en transferencias, trae todas las cuentas/tarjetas del dominio
+    cuenta_destino_element = None
+    if es_transferencia and "CAJA_ACTUAL" in bloques_disponibles:
+        cuentas_destino = obtener_cuentas_validas(catalogo, dominio_actual, "CAJA_ACTUAL")
+        if cuentas_destino:
+            cd_options = build_options(cuentas_destino)
+            cd_value = state.get("cuenta_destino") if state else None
+            cd_initial = find_option(cd_options, cd_value)
+
+            cuenta_destino_element = {
+                "type": "static_select",
+                "action_id": "cuenta_destino_select",
+                "options": cd_options
+            }
+
+            if cd_initial:
+                cuenta_destino_element["initial_option"] = cd_initial
+
     cortes = generar_cortes()
     corte_options = build_options(cortes)
     corte_value = state.get("corte") if state else cortes[0]
@@ -235,8 +259,16 @@ def build_modal(catalogo, dominio=None, state=None):
         blocks.append({
             "type": "input",
             "block_id": "cuenta",
-            "label": {"type": "plain_text", "text": "Cuenta"},
+            "label": {"type": "plain_text", "text": "Cuenta origen" if es_transferencia else "Cuenta"},
             "element": cuenta_element
+        })
+
+    if cuenta_destino_element:
+        blocks.append({
+            "type": "input",
+            "block_id": "cuenta_destino",
+            "label": {"type": "plain_text", "text": "Cuenta destino"},
+            "element": cuenta_destino_element
         })
 
     if concepto_element and incluir_concepto:
@@ -400,6 +432,7 @@ def extract_state(values):
         "dominio": get_value("dominio", "dominio_select"),
         "corte": get_value("corte", "corte_select"),
         "cuenta": get_value("cuenta", "cuenta_select"),
+        "cuenta_destino": get_value("cuenta_destino", "cuenta_destino_select"),
         "concepto": get_value("concepto", "concepto_select"),
         "descripcion": get_value("descripcion", "descripcion_input"),
         "valor": get_value("valor", "valor_input")
@@ -463,6 +496,12 @@ RULES = {
         "requiere_concepto": True,
         "bloque_concepto": "PROYECCION",
         "bloque_cuenta": "CAJA_ACTUAL"
+    },
+    TIPO_REGISTRO_TRANSFERENCIA: {
+        "requiere_cuenta": True,
+        "requiere_concepto": False,
+        "bloque_concepto": None,
+        "bloque_cuenta": "CAJA_ACTUAL"
     }
 }
 
@@ -475,6 +514,7 @@ def validate_submission(state, catalogo):
     dominio = state.get("dominio")
     cuenta = state.get("cuenta")
     concepto = state.get("concepto")
+    cuenta_destino = state.get("cuenta_destino")
 
     if not tipo:
         errores["tipo_registro"] = "Debes seleccionar el tipo de registro"
@@ -506,6 +546,19 @@ def validate_submission(state, catalogo):
     else:
         if cuenta:
             errores["cuenta"] = "Este tipo de registro no permite cuenta"
+
+    # Validaciones específicas para transferencia
+    if tipo == TIPO_REGISTRO_TRANSFERENCIA:
+        cuentas_validas = obtener_cuentas_validas(catalogo, dominio, "CAJA_ACTUAL")
+
+        if not cuenta_destino:
+            errores["cuenta_destino"] = "La cuenta destino es obligatoria para transferencias"
+        elif cuenta_destino not in cuentas_validas:
+            errores["cuenta_destino"] = "Cuenta destino no válida para este dominio"
+        elif cuenta_destino == cuenta:
+            errores["cuenta_destino"] = "La cuenta destino no puede ser igual a la cuenta origen"
+
+        return errores
 
     bloques = catalogo.get(dominio, {})
     tiene_proyeccion = "PROYECCION" in bloques
@@ -626,11 +679,13 @@ def lambda_handler(event, context):
             state["tipo_registro"] = action["selected_option"]["value"]
             state["cuenta"] = None
             state["concepto"] = None
+            state["cuenta_destino"] = None
 
         if action["action_id"] == "dominio_select":
             state["dominio"] = action["selected_option"]["value"]
             state["cuenta"] = None
             state["concepto"] = None
+            state["cuenta_destino"] = None
 
         new_modal = build_modal(catalogo, state=state)
         update_modal(body["view"]["id"], new_modal)

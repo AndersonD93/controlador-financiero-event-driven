@@ -108,9 +108,13 @@ def lambda_handler(event, context):
         concepto = payload["Descripcion"].strip().upper()
         dominio = payload["DominioFinanciero"].strip().upper()
         subconcepto = payload.get("Subconcepto")
+        cuenta_destino = payload.get("CuentaDestino")
 
         if subconcepto:
             subconcepto = subconcepto.strip().upper()
+
+        if cuenta_destino:
+            cuenta_destino = cuenta_destino.strip().upper()
 
         try:
             valor = Decimal(str(payload["Valor"]))
@@ -165,6 +169,23 @@ def lambda_handler(event, context):
                 "permitidos": conceptos_validos
             })
 
+        # Validar cuenta_destino cuando el concepto es TRANSFERENCIA
+        if concepto == "TRANSFERENCIA":
+            if not cuenta_destino:
+                return build_response(source, 400, {
+                    "message": "CuentaDestino es obligatorio para transferencias"
+                })
+            if cuenta_destino not in cuentas_validas:
+                return build_response(source, 400, {
+                    "message": "CuentaDestino no permitida para el dominio",
+                    "cuenta_destino": cuenta_destino,
+                    "permitidas": cuentas_validas
+                })
+            if cuenta_destino == cuenta:
+                return build_response(source, 400, {
+                    "message": "CuentaDestino no puede ser igual a la cuenta origen"
+                })
+
         item = {
             "trx_id": str(uuid.uuid4()),
             "cuenta": cuenta,
@@ -179,6 +200,9 @@ def lambda_handler(event, context):
 
         if subconcepto:
             item["subconcepto"] = subconcepto
+
+        if cuenta_destino:
+            item["cuentaDestino"] = cuenta_destino
 
         print("Item a guardar:")
         print(json.dumps(item, indent=2, default=str))

@@ -23,7 +23,8 @@
         "ADMINISTRACION",
         "ESTUDIO",
         "SALDO_INICIAL",
-        "AHORRO CONTINGENCIA"
+        "AHORRO CONTINGENCIA",
+        "TRANSFERENCIA"
       ]
     }
   },
@@ -50,7 +51,8 @@
         "INGRESO SALARIO",
         "APORTE HOGAR",
         "DEUDA A CASA",
-        "GASTOS HORMIGA"
+        "GASTOS HORMIGA",
+        "TRANSFERENCIA"
       ]
     }
   },
@@ -73,7 +75,8 @@
         "AHORRO LEANDRO",
         "AHORRO JOHAO",
         "AHORRO JENNY",
-        "SALDO APTO"
+        "SALDO APTO",
+        "TRANSFERENCIA"
       ]
     }
   },

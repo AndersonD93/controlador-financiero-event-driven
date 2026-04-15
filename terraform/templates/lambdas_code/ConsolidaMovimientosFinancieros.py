@@ -97,11 +97,12 @@ def regla_aplica(regla, contexto):
     valor = contexto["valor"]
     condicion = regla["condicion_valor"]
 
-    if condicion == "POSITIVO" and valor <= 0:
+    if condicion == "CUALQUIERA":
+        pass
+    elif condicion == "POSITIVO" and valor <= 0:
         print("- Rechazada: valor no positivo")
         return False
-
-    if condicion == "NEGATIVO" and valor >= 0:
+    elif condicion == "NEGATIVO" and valor >= 0:
         print("- Rechazada: valor no negativo")
         return False
 
@@ -207,6 +208,10 @@ def lambda_handler(event, context):
             if field and field in item:
                 origen = str(item[field]).upper()
 
+            cuenta_destino = item.get("cuentaDestino")
+            if cuenta_destino:
+                cuenta_destino = str(cuenta_destino).upper()
+
             contexto = {
                 "tipo": tipo,
                 "bloque": bloque,
@@ -214,7 +219,8 @@ def lambda_handler(event, context):
                 "concepto": concepto,
                 "dominio": dominio,
                 "corte": corte,
-                "origen": origen
+                "origen": origen,
+                "cuenta_destino": cuenta_destino
             }
 
             print("CHECKPOINT 7 - CONTEXTO NORMALIZADO:", json.dumps(contexto, default=str))
@@ -232,10 +238,21 @@ def lambda_handler(event, context):
                     monto = aplicar_operacion(accion, contexto)
 
                     pk = f"{dominio}#{corte}"
+
+                    # Resolver el origen según la directiva de la acción
+                    origen_accion = origen
+                    origen_destino = accion.get("origen_destino")
+
+                    if origen_destino == "USAR_CUENTA_DESTINO":
+                        origen_accion = contexto.get("cuenta_destino")
+                        if not origen_accion:
+                            print(f"Acción requiere cuenta_destino pero no está en el contexto, se omite")
+                            continue
+
                     sk = construir_sk(
                         accion["tipo_destino"],
                         concepto,
-                        origen
+                        origen_accion
                     )
 
                     print(f"DEBUG SK GENERADO → PK: {pk} | SK: {sk} | Monto: {monto}")
@@ -273,7 +290,7 @@ def lambda_handler(event, context):
                             ":t": accion["tipo_destino"],
                             ":b": accion["bloque_destino"],
                             ":c": concepto,
-                            ":o": origen
+                            ":o": origen_accion
                         }
                     )
 

@@ -28,10 +28,10 @@ resource "aws_cloudfront_distribution" "dashboard" {
     viewer_protocol_policy = "redirect-to-https"
     compress               = true
 
-    # Cache policy: 1 día para index.html (bajo costo = menos requests a S3)
+    # Cache policy: 1 hora para index.html (bajo costo = menos requests a S3)
     min_ttl     = 0
-    default_ttl = 86400
-    max_ttl     = 86400
+    default_ttl = 3600
+    max_ttl     = 3600
 
     forwarded_values {
       query_string = false

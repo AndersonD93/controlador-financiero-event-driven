@@ -57,7 +57,7 @@
     "condicion_valor": "POSITIVO",
     "requiere_cuenta": true,
     "descripcion": "Cuando se registra un ingreso del hogar, se disminuye la proyección del mismo concepto",
-    "incluir_conceptos": ["INGRESO HOGAR"],
+    "incluir_conceptos": ["INGRESO HOGAR","INGRESO SALARIO"],
     "excluir_dominio" :["INVERSIONES"],
     "acciones": [
       {
@@ -76,5 +76,29 @@
     ],
     "activo": true
   }
+    ,
+    {
+      "id": "TRANSFERENCIA_ENTRE_CUENTAS",
+      "tipos_origen": ["CUENTA"],
+      "bloque_origen": "CAJA_ACTUAL",
+      "condicion_valor": "CUALQUIERA",
+      "incluir_conceptos": ["TRANSFERENCIA"],
+      "descripcion": "Mueve saldo de una cuenta origen a una cuenta destino dentro de CAJA_ACTUAL",
+      "acciones": [
+        {
+          "tipo_destino": "CUENTA",
+          "bloque_destino": "CAJA_ACTUAL",
+          "operacion": "DECREMENTAR",
+          "origen_destino": "USAR_ORIGEN"
+        },
+        {
+          "tipo_destino": "CUENTA",
+          "bloque_destino": "CAJA_ACTUAL",
+          "operacion": "INCREMENTAR",
+          "origen_destino": "USAR_CUENTA_DESTINO"
+        }
+      ],
+      "activo": true
+    }
   ]
 }

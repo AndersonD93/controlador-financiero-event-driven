@@ -57,6 +57,20 @@ def build_proyeccion(state):
     }
 
 
+def build_transferencia(state):
+
+    return {
+        "Cuenta": state.get("cuenta"),
+        "CuentaDestino": state.get("cuenta_destino"),
+        "Descripcion": "TRANSFERENCIA",
+        "Subconcepto": state.get("descripcion"),
+        "Valor": int(state.get("valor")),
+        "FechaMovimiento": fecha_hoy(),
+        "Corte": state.get("corte"),
+        "DominioFinanciero": state.get("dominio")
+    }
+
+
 def publish_event(event_type, payload, metadata):
 
     response = eventbridge.put_events(
@@ -114,6 +128,11 @@ def lambda_handler(event, context):
 
             payload = build_proyeccion(state)
             event_type = "proyeccion.registrado"
+
+        elif tipo == "TRANSFERENCIA":
+
+            payload = build_transferencia(state)
+            event_type = "movimiento.general.registrado"
 
         else:
             raise Exception(f"Tipo de registro no soportado: {tipo}")
