@@ -94,6 +94,16 @@ def regla_aplica(regla, contexto):
             print(f"- Rechazada: dominio excluido ({dominio})")
             return False
 
+    if "incluir_dominio" in regla:
+        if dominio not in regla["incluir_dominio"]:
+            print(f"- Rechazada: dominio no está en incluir_dominio ({dominio})")
+            return False
+
+    if "incluir_origen" in regla:
+        if contexto.get("origen") not in regla["incluir_origen"]:
+            print(f"- Rechazada: origen no está en incluir_origen ({contexto.get('origen')})")
+            return False
+
     valor = contexto["valor"]
     condicion = regla["condicion_valor"]
 
@@ -123,6 +133,9 @@ def aplicar_operacion(accion, contexto):
 
     if accion["operacion"] in ["INCREMENTAR", "ADD"]:
         return monto
+
+    if accion["operacion"] == "REPLICAR":
+        return valor  # preserva el signo original
 
     raise Exception(f"Operación no soportada: {accion['operacion']}")
 
@@ -249,9 +262,14 @@ def lambda_handler(event, context):
                             print(f"Acción requiere cuenta_destino pero no está en el contexto, se omite")
                             continue
 
+                    # Resolver dominio y concepto de destino si la acción los sobreescribe
+                    dominio_accion = accion.get("dominio_destino") or dominio
+                    concepto_accion = accion.get("concepto_destino") or concepto
+                    pk = f"{dominio_accion}#{corte}"
+
                     sk = construir_sk(
                         accion["tipo_destino"],
-                        concepto,
+                        concepto_accion,
                         origen_accion
                     )
 
@@ -289,7 +307,7 @@ def lambda_handler(event, context):
                             ":inc": monto,
                             ":t": accion["tipo_destino"],
                             ":b": accion["bloque_destino"],
-                            ":c": concepto,
+                            ":c": concepto_accion,
                             ":o": origen_accion
                         }
                     )

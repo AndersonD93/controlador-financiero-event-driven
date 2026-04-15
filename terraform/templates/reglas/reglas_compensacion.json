@@ -100,5 +100,46 @@
       ],
       "activo": true
     }
+    ,
+    {
+      "id": "KUBO_CASA_REPLICA_AHORRO_SALDO_APTO",
+      "tipos_origen": ["CUENTA"],
+      "bloque_origen": "CAJA_ACTUAL",
+      "condicion_valor": "CUALQUIERA",
+      "incluir_dominio": ["CASA"],
+      "incluir_origen": ["KUBO"],
+      "descripcion": "Todo movimiento de KUBO en CASA replica su valor en AHORRO con concepto SALDO APTO",
+      "acciones": [
+        {
+          "tipo_destino": "CUENTA",
+          "bloque_destino": "CAJA_ACTUAL",
+          "operacion": "REPLICAR",
+          "dominio_destino": "AHORRO",
+          "concepto_destino": "SALDO APTO",
+          "origen_destino": "USAR_ORIGEN"
+        }
+      ],
+      "activo": true
+    },
+    {
+      "id": "KUBO_PERSONAL_REPLICA_AHORRO_JOHAO",
+      "tipos_origen": ["CUENTA"],
+      "bloque_origen": "CAJA_ACTUAL",
+      "condicion_valor": "CUALQUIERA",
+      "incluir_dominio": ["PERSONAL"],
+      "incluir_origen": ["KUBO"],
+      "descripcion": "Todo movimiento de KUBO en PERSONAL replica su valor en AHORRO con concepto AHORRO JOHAO",
+      "acciones": [
+        {
+          "tipo_destino": "CUENTA",
+          "bloque_destino": "CAJA_ACTUAL",
+          "operacion": "REPLICAR",
+          "dominio_destino": "AHORRO",
+          "concepto_destino": "AHORRO JOHAO",
+          "origen_destino": "USAR_ORIGEN"
+        }
+      ],
+      "activo": true
+    }
   ]
 }

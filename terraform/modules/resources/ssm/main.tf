@@ -30,7 +30,7 @@ resource "aws_ssm_parameter" "reglas_compensacion" {
   name        = "/${var.prefix}/reglas-compensacion"
   description = "Reglas de compensación para flujo de caja"
   type        = "String"
-  tier        = "Standard"
+  tier        = "Advanced"
   value       = local.reglas_compensacion_value
   overwrite   = true
 
