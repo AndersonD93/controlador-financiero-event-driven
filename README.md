@@ -90,8 +90,8 @@ CSV + JSONL en S3
 ### Integración Slack
 | Lambda | Descripción |
 |---|---|
-| `WebhookHandler` | Valida firma de Slack. Maneja slash commands `/registrar` y `/consulta`, construye modales dinámicos y enruta submissions. |
-| `InterpretadorRouters` | Transforma el state del modal al payload correcto y publica el evento en EventBridge. |
+| `WebhookHandler` | Valida firma de Slack. Maneja slash commands `/registrar` y `/consulta`, construye modales dinámicos (incluyendo el tipo **Transferencia entre cuentas** con campo cuenta destino dinámico) y enruta submissions. |
+| `InterpretadorRouters` | Transforma el state del modal al payload correcto y publica el evento en EventBridge. Soporta los tipos MOVIMIENTO_GENERAL, MOVIMIENTO_TARJETA, PROYECCION y TRANSFERENCIA. |
 | `NotificadorSlack` | Escucha eventos confirmados en EventBridge y envía notificaciones al canal de Slack. |
 
 ### IA y reportes
@@ -117,13 +117,63 @@ CSV + JSONL en S3
 
 ## Reglas de Compensación
 
-Las reglas se almacenan en SSM (`/flujo-caja/reglas-compensacion`) y son evaluadas por `ConsolidaMovimientosFinancieros` en cada evento. Se cachean 5 minutos en memoria.
+Las reglas se almacenan en SSM (`/flujo-caja/reglas-compensacion`, tier **Advanced** para soportar payloads mayores a 4 KB) y son evaluadas por `ConsolidaMovimientosFinancieros` en cada evento. Se cachean 5 minutos en memoria.
 
-| Regla | Condición | Efecto |
-|---|---|---|
-| `CUENTA_DISMINUYE_GASTO` | Movimiento de cuenta con valor negativo | Disminuye gasto proyectado y saldo de cuenta |
-| `MOV_TARJETA_REDUCE_PROYECCION` | Movimiento de tarjeta con valor positivo | Disminuye gasto proyectado e incrementa saldo de tarjeta |
-| `INGRESO_HOGAR_DISMINUYE_PROYECCION` | Concepto "INGRESO HOGAR" con valor positivo | Disminuye proyección del mismo concepto e incrementa saldo |
+### Tipos de regla
+
+- **Normal** — aplica sus acciones y marca el registro como procesado (bloquea el fallback default).
+- **COMPLEMENTARIA** — aplica sus acciones pero no bloquea otras reglas ni el fallback. Usada para efectos secundarios como replicar saldos entre dominios sin duplicar escrituras.
+
+### Operaciones disponibles en acciones
+
+| Operación | Comportamiento |
+|---|---|
+| `DECREMENTAR` | Aplica el valor en negativo (abs del valor) |
+| `INCREMENTAR` | Aplica el valor en positivo (abs del valor) |
+| `REPLICAR` | Preserva el signo original del movimiento |
+
+### Campos de acción avanzados
+
+| Campo | Descripción |
+|---|---|
+| `dominio_destino` | Escribe en un dominio diferente al del registro origen |
+| `concepto_destino` | Sobreescribe el concepto en el destino con un valor fijo |
+| `origen_destino: USAR_ORIGEN` | Usa la cuenta origen del registro |
+| `origen_destino: USAR_CUENTA_DESTINO` | Usa la cuenta destino (transferencias). Si es TARJETA, invierte el signo automáticamente |
+| `origen_destino: USAR_CUENTA_AFECTADA` | Resuelve cuál de las dos cuentas (origen o destino) coincide con `incluir_origen` de la regla |
+
+### Filtros de activación
+
+| Filtro | Descripción |
+|---|---|
+| `incluir_conceptos` | Solo aplica si el concepto está en la lista |
+| `excluir_conceptos` | No aplica si el concepto está en la lista |
+| `incluir_dominio` | Solo aplica para los dominios indicados |
+| `excluir_dominio` | No aplica para los dominios indicados |
+| `incluir_origen` | Aplica si la cuenta origen **o** la cuenta destino está en la lista |
+| `condicion_valor` | `POSITIVO`, `NEGATIVO` o `CUALQUIERA` |
+
+### Reglas activas
+
+| Regla | Tipo | Condición | Efecto |
+|---|---|---|---|
+| `CUENTA_DISMINUYE_GASTO` | Normal | Cuenta negativa, excluye AHORRO/INVERSIONES | Disminuye gasto proyectado y saldo de cuenta |
+| `MOV_TARJETA_REDUCE_PROYECCION` | Normal | Tarjeta positiva | Disminuye gasto proyectado e incrementa saldo de tarjeta |
+| `INGRESO_HOGAR_DISMINUYE_PROYECCION` | Normal | Concepto INGRESO HOGAR/SALARIO positivo | Disminuye proyección del mismo concepto e incrementa saldo |
+| `TRANSFERENCIA_ENTRE_CUENTAS` | Normal | Concepto TRANSFERENCIA, cualquier valor | Decrementa cuenta origen e incrementa cuenta destino. Si destino es TARJETA, ambas decrementan |
+| `KUBO_CASA_REPLICA_AHORRO_SALDO_APTO` | Complementaria | KUBO en dominio CASA (origen o destino) | Replica el movimiento en `AHORRO / SALDO APTO` preservando signo |
+| `KUBO_PERSONAL_REPLICA_AHORRO_JOHAO` | Complementaria | KUBO en dominio PERSONAL (origen o destino) | Replica el movimiento en `AHORRO / AHORRO JOHAO` preservando signo |
+
+---
+
+## Transferencias entre cuentas
+
+El slash command `/registrar` incluye el tipo **"Transferencia entre cuentas"**. Al seleccionarlo:
+
+- Aparece el campo **Cuenta origen** con las cuentas del dominio seleccionado.
+- Aparece el campo **Cuenta destino** con todas las cuentas y tarjetas del mismo dominio.
+- Si la cuenta destino es una **tarjeta**, el sistema interpreta el movimiento como pago de deuda y decrementa ambos saldos.
+- Si KUBO es origen o destino, las reglas complementarias replican el impacto en el dominio AHORRO.
 
 ---
 

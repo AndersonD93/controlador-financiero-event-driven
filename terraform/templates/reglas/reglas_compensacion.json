@@ -103,12 +103,13 @@
     ,
     {
       "id": "KUBO_CASA_REPLICA_AHORRO_SALDO_APTO",
+      "tipo": "COMPLEMENTARIA",
       "tipos_origen": ["CUENTA"],
       "bloque_origen": "CAJA_ACTUAL",
       "condicion_valor": "CUALQUIERA",
       "incluir_dominio": ["CASA"],
       "incluir_origen": ["KUBO"],
-      "descripcion": "Todo movimiento de KUBO en CASA replica su valor en AHORRO con concepto SALDO APTO",
+      "descripcion": "Todo movimiento que afecte KUBO en CASA (como origen o destino) replica en AHORRO con concepto SALDO APTO.",
       "acciones": [
         {
           "tipo_destino": "CUENTA",
@@ -116,19 +117,20 @@
           "operacion": "REPLICAR",
           "dominio_destino": "AHORRO",
           "concepto_destino": "SALDO APTO",
-          "origen_destino": "USAR_ORIGEN"
+          "origen_destino": "USAR_CUENTA_AFECTADA"
         }
       ],
       "activo": true
     },
     {
       "id": "KUBO_PERSONAL_REPLICA_AHORRO_JOHAO",
+      "tipo": "COMPLEMENTARIA",
       "tipos_origen": ["CUENTA"],
       "bloque_origen": "CAJA_ACTUAL",
       "condicion_valor": "CUALQUIERA",
       "incluir_dominio": ["PERSONAL"],
       "incluir_origen": ["KUBO"],
-      "descripcion": "Todo movimiento de KUBO en PERSONAL replica su valor en AHORRO con concepto AHORRO JOHAO",
+      "descripcion": "Todo movimiento que afecte KUBO en PERSONAL (como origen o destino) replica en AHORRO con concepto AHORRO JOHAO.",
       "acciones": [
         {
           "tipo_destino": "CUENTA",
@@ -136,7 +138,7 @@
           "operacion": "REPLICAR",
           "dominio_destino": "AHORRO",
           "concepto_destino": "AHORRO JOHAO",
-          "origen_destino": "USAR_ORIGEN"
+          "origen_destino": "USAR_CUENTA_AFECTADA"
         }
       ],
       "activo": true

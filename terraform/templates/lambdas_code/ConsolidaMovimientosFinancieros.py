@@ -10,6 +10,8 @@ ssm = boto3.client("ssm")
 
 table = dynamodb.Table(os.getenv("flujo_caja_table"))
 
+from catalogo_financiero import cargar_catalogo, resolver_tipo_cuenta
+
 REGLAS_PARAM = "/flujo-caja/reglas-compensacion"
 
 # Cache en memoria (cold-start aware)
@@ -100,8 +102,11 @@ def regla_aplica(regla, contexto):
             return False
 
     if "incluir_origen" in regla:
-        if contexto.get("origen") not in regla["incluir_origen"]:
-            print(f"- Rechazada: origen no está en incluir_origen ({contexto.get('origen')})")
+        origen_ctx = contexto.get("origen")
+        destino_ctx = contexto.get("cuenta_destino")
+        # Aplica si la cuenta coincide con origen O con cuenta_destino (transferencias)
+        if origen_ctx not in regla["incluir_origen"] and destino_ctx not in regla["incluir_origen"]:
+            print(f"- Rechazada: origen/destino no está en incluir_origen ({origen_ctx} / {destino_ctx})")
             return False
 
     valor = contexto["valor"]
@@ -180,6 +185,7 @@ def lambda_handler(event, context):
     print(f"CHECKPOINT 1 - Records recibidos: {len(records)}")
 
     reglas = cargar_reglas()
+    catalogo = cargar_catalogo()
 
     for record in records:
         try:
@@ -245,7 +251,13 @@ def lambda_handler(event, context):
                 if not regla_aplica(regla, contexto):
                     continue
 
-                regla_aplicada = True
+                # Las reglas COMPLEMENTARIAS ejecutan sus acciones pero no
+                # bloquean otras reglas ni marcan regla_aplicada, evitando
+                # que el dominio origen sea escrito dos veces
+                es_complementaria = regla.get("tipo") == "COMPLEMENTARIA"
+
+                if not es_complementaria:
+                    regla_aplicada = True
 
                 for accion in regla["acciones"]:
                     monto = aplicar_operacion(accion, contexto)
@@ -260,6 +272,29 @@ def lambda_handler(event, context):
                         origen_accion = contexto.get("cuenta_destino")
                         if not origen_accion:
                             print(f"Acción requiere cuenta_destino pero no está en el contexto, se omite")
+                            continue
+
+                        # Si la cuenta destino es una TARJETA, pagar la tarjeta
+                        # significa reducir su saldo (deuda), no aumentarlo
+                        tipo_destino_real = resolver_tipo_cuenta(
+                            catalogo, dominio, origen_accion
+                        )
+                        if tipo_destino_real == "TARJETA" and accion["operacion"] == "INCREMENTAR":
+                            monto = monto * Decimal(-1)
+                            print(f"Cuenta destino es TARJETA — operación invertida a DECREMENTAR")
+
+                    elif origen_destino == "USAR_CUENTA_AFECTADA":
+                        # Resuelve cuál de las dos cuentas (origen o destino) coincide
+                        # con incluir_origen de la regla — útil en transferencias donde
+                        # KUBO puede ser origen o destino
+                        cuentas_filtro = regla.get("incluir_origen", [])
+                        cuenta_destino_ctx = contexto.get("cuenta_destino")
+                        if origen in cuentas_filtro:
+                            origen_accion = origen
+                        elif cuenta_destino_ctx and cuenta_destino_ctx in cuentas_filtro:
+                            origen_accion = cuenta_destino_ctx
+                        else:
+                            print(f"USAR_CUENTA_AFECTADA: ninguna cuenta coincide con incluir_origen, se omite")
                             continue
 
                     # Resolver dominio y concepto de destino si la acción los sobreescribe

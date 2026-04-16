@@ -42,6 +42,9 @@ module "lambdas_backend_api" {
       lambda_name = "ConsolidaMovimientosFinancieros"
       handler     = "ConsolidaMovimientosFinancieros.lambda_handler"
       runtime     = "python3.12"
+      layers = [
+        aws_lambda_layer_version.python_deps.arn
+      ]
       environment_variables = {
         "flujo_caja_table" = module.dynamo_tables_control_financiero.dynamo_table_name["FlujoDeCaja"]
       }

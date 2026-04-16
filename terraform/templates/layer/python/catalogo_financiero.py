@@ -110,6 +110,24 @@ def obtener_cuentas_validas(catalogo, dominio, bloque="CAJA_ACTUAL", tipo=None):
 
     return cuentas
 
+
+def resolver_tipo_cuenta(catalogo, dominio, cuenta, bloque="CAJA_ACTUAL"):
+    """
+    Retorna el tipo (CUENTA, TARJETA, CDT, etc.) al que pertenece
+    una cuenta dentro de un bloque del catálogo.
+    Retorna None si no se encuentra.
+    """
+    try:
+        bloque_data = catalogo[dominio][bloque]
+    except KeyError:
+        return None
+
+    for tipo, items in bloque_data.items():
+        if isinstance(items, list) and cuenta in items:
+            return tipo
+
+    return None
+
 def normalizar_evento(event):
 
     # EventBridge
