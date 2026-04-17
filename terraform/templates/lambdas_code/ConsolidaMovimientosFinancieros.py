@@ -146,6 +146,18 @@ def aplicar_operacion(accion, contexto):
 
 
 def calcular_monto_seguro(pk, sk, monto_propuesto):
+    """
+    Ajusta un DECREMENTAR sobre PROYECCION para que el valor resultante
+    no pase de cero hacia negativo. Las proyecciones de gasto son positivas
+    en FlujoDeCaja y se consumen restando (DECREMENTAR). No deben volverse
+    negativas si el gasto real supera lo proyectado.
+
+    Ejemplos:
+      Proyección: +160.000 | Gasto real: -100.000 → DECREMENTAR -100.000 → resultado +60.000  → pasa completo
+      Proyección: +160.000 | Gasto real: -160.000 → DECREMENTAR -160.000 → resultado 0        → pasa completo
+      Proyección: +160.000 | Gasto real: -170.000 → DECREMENTAR -170.000 → resultado -10.000  → ajusta a -160.000 (llega a 0)
+      Proyección: 0        | Gasto real: -50.000  → DECREMENTAR -50.000  → resultado -50.000  → ajusta a 0
+    """
     try:
         response = table.get_item(
             Key={
@@ -167,8 +179,9 @@ def calcular_monto_seguro(pk, sk, monto_propuesto):
         resultado = valor_actual + monto_propuesto
 
         if resultado < 0:
-            monto_ajustado = monto_propuesto - resultado
-            print(f"DEBUG MONTO SEGURO → Ajustado a: {monto_ajustado} (evita negativo)")
+            # El decremento pasaría la proyección a negativo → ajustar para llegar exactamente a 0
+            monto_ajustado = Decimal(0) - valor_actual
+            print(f"DEBUG MONTO SEGURO → Ajustado a: {monto_ajustado} (evita pasar de cero)")
             return monto_ajustado
 
         return monto_propuesto
@@ -310,7 +323,7 @@ def lambda_handler(event, context):
 
                     print(f"DEBUG SK GENERADO → PK: {pk} | SK: {sk} | Monto: {monto}")
 
-                    # Protección anti-negativo para PROYECCION
+                    # Protección: evita que un gasto mayor al proyectado lleve la proyección a negativo
                     if accion["bloque_destino"] == "PROYECCION" and monto < 0:
                         monto = calcular_monto_seguro(pk, sk, monto)
 
