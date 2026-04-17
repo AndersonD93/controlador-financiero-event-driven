@@ -1,21 +1,21 @@
-#Ignorar config.js
-terraform/templates/js/config.js
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+.Python
 
-#Ignorar archivos de terraform
-terraform/.terraform/
-terraform/.terraform.lock.hcl
-terraform/terraform.tfstate
-terraform/terraform.tfstate.backup
-**/.terraform/
+# Terraform
+.terraform/
 *.tfstate
-*.tfstate.*
-.crash.log
-terraform/terraform.tfvars
+*.tfstate.backup
+*.tfplan
+.terraform.lock.hcl
+terraform/templates/lambdas_code/deploy/
 
-#Ignorar versiones de archivos ZIP
-*.zip
+# IDE
+.vscode/
+.idea/
 
-# Frontend generated artifacts
-terraform/templates/css/*
-terraform/templates/html/*
-terraform/templates/js/*
+# Kiro
+.kiro/
