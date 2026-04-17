@@ -12,6 +12,7 @@ __pycache__/
 *.tfplan
 .terraform.lock.hcl
 terraform/templates/lambdas_code/deploy/
+terraform/opensearch.tf
 
 # IDE
 .vscode/

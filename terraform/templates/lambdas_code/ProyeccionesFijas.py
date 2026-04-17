@@ -37,14 +37,16 @@ def cargar_proyecciones():
 
 def calcular_cortes(corte_base=None):
     """
-    Retorna una lista de 3 cortes: el base (o actual) + los 2 siguientes.
-    Formato: ['2026-04', '2026-05', '2026-06']
-    Si no se recibe corte_base, usa la fecha UTC actual.
+    Retorna una lista de 3 cortes: el mes actual + los 2 siguientes.
+    Formato: ['2026-05', '2026-06', '2026-07']
+    Si se recibe corte_base explícito, lo usa como punto de inicio.
+    Si no, usa el mes actual (fecha UTC).
     """
     if corte_base:
         fecha_inicio = datetime.strptime(corte_base, "%Y-%m")
     else:
-        fecha_inicio = datetime.utcnow().replace(day=1)
+        hoy = datetime.utcnow()
+        fecha_inicio = hoy.replace(day=1)
 
     cortes = []
     for i in range(MESES_PROYECCION):
