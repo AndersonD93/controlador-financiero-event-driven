@@ -18,3 +18,8 @@ variable "proyeccion_fija_path" {
   type        = string
 }
 
+variable "conceptos_persistentes_path" {
+  description = "Ruta al JSON de conceptos de proyección que persisten en el cierre mensual"
+  type        = string
+}
+

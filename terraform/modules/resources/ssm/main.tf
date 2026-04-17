@@ -1,11 +1,13 @@
 locals {
-  catalogo_financiero_value   = file("${path.module}/../../../templates/reglas/catalogo_financiero.json")
-  reglas_compensacion_value   = file("${path.module}/../../../templates/reglas/reglas_compensacion.json")
-  proyecciones_fijas_value    = file("${path.module}/../../../templates/reglas/proyecciones_fijas.json")
+  catalogo_financiero_value          = file("${path.module}/../../../templates/reglas/catalogo_financiero.json")
+  reglas_compensacion_value          = file("${path.module}/../../../templates/reglas/reglas_compensacion.json")
+  proyecciones_fijas_value           = file("${path.module}/../../../templates/reglas/proyecciones_fijas.json")
+  conceptos_persistentes_value       = file("${path.module}/../../../templates/reglas/conceptos_persistentes_cierre.json")
 
-  catalogo_financiero_hash    = filesha256("${path.module}/../../../templates/reglas/catalogo_financiero.json")
-  reglas_compensacion_hash    = filesha256("${path.module}/../../../templates/reglas/reglas_compensacion.json")
-  proyecciones_fijas_hash     = filesha256("${path.module}/../../../templates/reglas/proyecciones_fijas.json")
+  catalogo_financiero_hash           = filesha256("${path.module}/../../../templates/reglas/catalogo_financiero.json")
+  reglas_compensacion_hash           = filesha256("${path.module}/../../../templates/reglas/reglas_compensacion.json")
+  proyecciones_fijas_hash            = filesha256("${path.module}/../../../templates/reglas/proyecciones_fijas.json")
+  conceptos_persistentes_hash        = filesha256("${path.module}/../../../templates/reglas/conceptos_persistentes_cierre.json")
 }
 
 
@@ -58,3 +60,18 @@ resource "aws_ssm_parameter" "proyecciones_fijas" {
 }
 
 
+
+resource "aws_ssm_parameter" "conceptos_persistentes_cierre" {
+  name        = "/${var.prefix}/conceptos-persistentes-cierre"
+  description = "Conceptos de proyección que se trasladan al siguiente mes en el cierre mensual"
+  type        = "String"
+  tier        = "Standard"
+  value       = local.conceptos_persistentes_value
+  overwrite   = true
+
+  tags = {
+    proyecto     = "flujo-caja"
+    tipo         = "conceptos-persistentes-cierre"
+    content_hash = local.conceptos_persistentes_hash
+  }
+}
