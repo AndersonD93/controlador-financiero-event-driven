@@ -54,9 +54,9 @@ def cargar_conceptos_persistentes():
 def cerrar_proyecciones(pk_actual, pk_siguiente, dominio, conceptos_persistentes_dominio):
     """
     Para el corte actual de un dominio:
-    - Consulta todos los ítems de bloque PROYECCION
-    - Los que están en conceptos_persistentes_dominio: los traslada al siguiente corte
-    - El resto: los elimina (delete_item)
+    - Consulta todos los ítems con prefijo GASTO# (proyecciones)
+    - Los que están en conceptos_persistentes_dominio y tienen valor != 0: los traslada al siguiente corte
+    - Todos los ítems del corte actual se eliminan en la limpieza final (eliminar_registros_corte)
     """
     response = table.query(
         KeyConditionExpression="#pk = :pk AND begins_with(#sk, :sk)",
@@ -100,14 +100,54 @@ def cerrar_proyecciones(pk_actual, pk_siguiente, dominio, conceptos_persistentes
             else:
                 logger.info(f"[{dominio}] Concepto persistente '{concepto}' en cero, no se traslada")
         else:
-            logger.info(f"[{dominio}] Eliminando proyección '{concepto}' del corte {pk_actual}")
+            logger.info(f"[{dominio}] Proyección '{concepto}' marcada para eliminación en limpieza final")
 
-            table.delete_item(
-                Key={
-                    "Dominio-Corte": pk_actual,
-                    "Tipo-Concepto": sk
-                }
-            )
+
+def eliminar_registros_corte(pk_actual, dominio):
+    """
+    Elimina TODOS los registros del corte cerrado para un dominio dado.
+    Se ejecuta después de haber trasladado saldos y proyecciones persistentes
+    al siguiente corte, dejando el mes cerrado completamente limpio.
+    """
+    items_eliminados = 0
+    last_evaluated_key = None
+
+    while True:
+        query_kwargs = {
+            "KeyConditionExpression": "#pk = :pk",
+            "ExpressionAttributeNames": {"#pk": "Dominio-Corte"},
+            "ExpressionAttributeValues": {":pk": pk_actual},
+            "ProjectionExpression": "#pk, #sk",
+            "ExpressionAttributeNames": {
+                "#pk": "Dominio-Corte",
+                "#sk": "Tipo-Concepto"
+            }
+        }
+
+        if last_evaluated_key:
+            query_kwargs["ExclusiveStartKey"] = last_evaluated_key
+
+        response = table.query(**query_kwargs)
+        items = response.get("Items", [])
+
+        # Eliminar en lotes de 25 (límite de batch_write_item)
+        for i in range(0, len(items), 25):
+            lote = items[i:i + 25]
+            with table.batch_writer() as batch:
+                for item in lote:
+                    batch.delete_item(
+                        Key={
+                            "Dominio-Corte": item["Dominio-Corte"],
+                            "Tipo-Concepto": item["Tipo-Concepto"]
+                        }
+                    )
+            items_eliminados += len(lote)
+
+        last_evaluated_key = response.get("LastEvaluatedKey")
+        if not last_evaluated_key:
+            break
+
+    logger.info(f"[{dominio}] Limpieza completa: {items_eliminados} registros eliminados de {pk_actual}")
 
 
 def lambda_handler(event, context):
@@ -177,12 +217,18 @@ def lambda_handler(event, context):
                     except Exception:
                         logger.error(f"Error liquidando {dominio} {tipo} {origen}", exc_info=True)
 
-            # 2. Cerrar proyecciones del corte actual
+            # 2. Trasladar proyecciones persistentes al siguiente corte
             try:
                 persistentes_dominio = conceptos_persistentes.get(dominio, [])
                 cerrar_proyecciones(pk_actual, pk_siguiente, dominio, persistentes_dominio)
             except Exception:
                 logger.error(f"Error cerrando proyecciones de {dominio}", exc_info=True)
+
+            # 3. Eliminar TODOS los registros del mes cerrado
+            try:
+                eliminar_registros_corte(pk_actual, dominio)
+            except Exception:
+                logger.error(f"Error eliminando registros del corte {pk_actual}", exc_info=True)
 
         logger.info("CIERRE MENSUAL FINALIZADO")
         return {"status": "OK"}

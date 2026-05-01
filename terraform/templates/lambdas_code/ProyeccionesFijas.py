@@ -37,21 +37,28 @@ def cargar_proyecciones():
 
 def calcular_cortes(corte_base=None):
     """
-    Retorna una lista de 3 cortes: el mes actual + los 2 siguientes.
-    Formato: ['2026-05', '2026-06', '2026-07']
-    Si se recibe corte_base explícito, lo usa como punto de inicio.
-    Si no, usa el mes actual (fecha UTC).
+    Retorna una lista de 3 cortes a proyectar hacia adelante.
+    El punto de inicio es el mes SIGUIENTE al actual (o al corte_base recibido),
+    ya que el mes actual ya fue procesado por el CierreMensual.
+
+    Ejemplo ejecutando en mayo 2026: ['2026-06', '2026-07', '2026-08']
+    Si se recibe corte_base='2026-05', el inicio es '2026-06'.
     """
     if corte_base:
-        fecha_inicio = datetime.strptime(corte_base, "%Y-%m")
+        fecha_base = datetime.strptime(corte_base, "%Y-%m")
     else:
         hoy = datetime.utcnow()
-        fecha_inicio = hoy.replace(day=1)
+        fecha_base = hoy.replace(day=1)
+
+    # Avanzar un mes para no pisar el mes actual
+    mes_inicio = fecha_base.month + 1
+    anio_inicio = fecha_base.year + (mes_inicio - 1) // 12
+    mes_inicio = ((mes_inicio - 1) % 12) + 1
 
     cortes = []
     for i in range(MESES_PROYECCION):
-        mes = fecha_inicio.month + i
-        anio = fecha_inicio.year + (mes - 1) // 12
+        mes = mes_inicio + i
+        anio = anio_inicio + (mes - 1) // 12
         mes = ((mes - 1) % 12) + 1
         cortes.append(f"{anio}-{mes:02d}")
 
@@ -72,18 +79,37 @@ def corte_ya_proyectado_automaticamente(table, dominio, corte):
     Verifica si ya existe al menos un registro con origen_registro = PROYECCION_AUTOMATICA
     para el dominio y corte dados, usando el GSI gsi-dominio-corte
     (hash_key: dominioFinanciero, range_key: corte).
-    Retorna True si el corte ya fue proyectado automáticamente, False si no.
+
+    IMPORTANTE: No usar Limit aquí. En DynamoDB, Limit acota los ítems *evaluados*
+    antes de aplicar el FilterExpression, no los resultados finales. Con Limit=1
+    se puede evaluar solo un ítem que no tenga PROYECCION_AUTOMATICA y retornar
+    False aunque el corte ya esté proyectado (falso negativo → sobreescritura).
     """
-    response = table.query(
-        IndexName="gsi-dominio-corte",
-        KeyConditionExpression=(
-            Key("dominioFinanciero").eq(dominio) &
-            Key("corte").eq(corte)
-        ),
-        FilterExpression=Attr("origen_registro").eq(ORIGEN_AUTOMATICO),
-        Limit=1
-    )
-    return response["Count"] > 0
+    last_evaluated_key = None
+
+    while True:
+        query_kwargs = {
+            "IndexName": "gsi-dominio-corte",
+            "KeyConditionExpression": (
+                Key("dominioFinanciero").eq(dominio) &
+                Key("corte").eq(corte)
+            ),
+            "FilterExpression": Attr("origen_registro").eq(ORIGEN_AUTOMATICO),
+        }
+
+        if last_evaluated_key:
+            query_kwargs["ExclusiveStartKey"] = last_evaluated_key
+
+        response = table.query(**query_kwargs)
+
+        if response["Count"] > 0:
+            return True
+
+        last_evaluated_key = response.get("LastEvaluatedKey")
+        if not last_evaluated_key:
+            break
+
+    return False
 
 
 def lambda_handler(event, context):
